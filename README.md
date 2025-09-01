@@ -41,6 +41,12 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional notification credentials
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```
 
 ### 2. Configure Your Repository
@@ -62,12 +68,40 @@ environments:
     rules:
       security: { enabled: true, priority: 'HIGH' }
       performance: { enabled: true, priority: 'HIGH' }
+
+# Notification settings
+notifications:
+  email:
+    enabled: true
+    smtp_host: ${{ secrets.SMTP_HOST }}
+    smtp_port: ${{ secrets.SMTP_PORT || 587 }}
+    smtp_user: ${{ secrets.SMTP_USER }}
+    smtp_pass: ${{ secrets.SMTP_PASS }}
+    from_email: 'ai-review@yourcompany.com'
+    to_emails: ['team@yourcompany.com']
+  
+  slack:
+    enabled: true
+    webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+    channel: '#ai-reviews'
 ```
 
 ### 3. Set Required Secrets
 
 - `OPENAI_API_KEY`: Your OpenAI API key
 - `GITHUB_TOKEN`: GitHub token (automatically provided)
+
+### 4. Configure Notifications (Optional)
+
+If you want email notifications, add these secrets:
+- `SMTP_HOST`: Your SMTP server (e.g., `smtp.gmail.com`)
+- `SMTP_USER`: SMTP username/email
+- `SMTP_PASS`: SMTP password or app-specific password
+- `SMTP_PORT`: SMTP port (default: 587)
+- `SMTP_SECURE`: Use TLS (default: false)
+
+For Slack notifications:
+- `SLACK_WEBHOOK_URL`: Your Slack webhook URL
 
 ## ⚙️ Configuration
 
@@ -88,6 +122,98 @@ environments:
 |----------|-------------|----------|
 | `OPENAI_API_KEY` | OpenAI API key | Yes |
 | `GITHUB_TOKEN` | GitHub token | Yes |
+
+#### Optional Notification Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SMTP_HOST` | SMTP server hostname | - |
+| `SMTP_USER` | SMTP username/email | - |
+| `SMTP_PASS` | SMTP password | - |
+| `SMTP_PORT` | SMTP port | `587` |
+| `SMTP_SECURE` | Use TLS | `false` |
+| `SLACK_WEBHOOK_URL` | Slack webhook URL | - |
+
+## 📧 Notification Setup
+
+### Email Configuration
+
+The action supports various SMTP providers. Here are common configurations:
+
+#### Gmail
+```yaml
+notifications:
+  email:
+    enabled: true
+    smtp_host: 'smtp.gmail.com'
+    smtp_port: 587
+    smtp_secure: false
+    smtp_user: 'your-email@gmail.com'
+    smtp_pass: 'your-app-specific-password'  # Use app password, not regular password
+```
+
+#### Outlook/Office 365
+```yaml
+notifications:
+  email:
+    enabled: true
+    smtp_host: 'smtp-mail.outlook.com'
+    smtp_port: 587
+    smtp_secure: false
+    smtp_user: 'your-email@outlook.com'
+    smtp_pass: 'your-password'
+```
+
+#### SendGrid
+```yaml
+notifications:
+  email:
+    enabled: true
+    smtp_host: 'smtp.sendgrid.net'
+    smtp_port: 587
+    smtp_secure: false
+    smtp_user: 'apikey'
+    smtp_pass: 'your-sendgrid-api-key'
+```
+
+#### Custom SMTP Server
+```yaml
+notifications:
+  email:
+    enabled: true
+    smtp_host: 'mail.yourcompany.com'
+    smtp_port: 587
+    smtp_secure: false
+    smtp_user: 'ai-review@yourcompany.com'
+    smtp_pass: 'your-password'
+```
+
+### Slack Configuration
+
+```yaml
+notifications:
+  slack:
+    enabled: true
+    webhook_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+    channel: '#ai-reviews'
+    username: 'AI Review Bot'
+    notify_on_failure_only: true
+```
+
+### Security Best Practices
+
+1. **Use App-Specific Passwords**: For Gmail and other providers, use app-specific passwords instead of your main password
+2. **Environment-Specific Credentials**: Use different SMTP accounts for different environments (dev/staging/prod)
+3. **Secret Rotation**: Regularly rotate your SMTP passwords and API keys
+4. **Minimal Permissions**: Use dedicated email accounts with minimal permissions for notifications
+5. **Audit Logging**: Enable audit logging to monitor email notification usage
+
+### Troubleshooting Email Issues
+
+- **Authentication Failed**: Check SMTP credentials and ensure 2FA is properly configured
+- **Connection Timeout**: Verify SMTP host and port, check firewall settings
+- **Rate Limiting**: Some providers limit emails per hour/day
+- **Spam Filters**: Ensure your from_email is properly configured and not marked as spam
 
 ## 🔧 Development
 
@@ -166,6 +292,22 @@ Current test coverage: **69.55%** (target: 80%)
 2. **Submit for Review**:
    - Follow GitHub's marketplace guidelines
    - Wait for approval process
+
+### Step 5: Set Up Required Secrets
+
+In any repository where you use the action:
+
+1. **Go to Settings** → **Secrets and variables** → **Actions**
+2. **Add required secrets**:
+   - **Name**: `OPENAI_API_KEY`
+   - **Value**: Your OpenAI API key (starts with `sk-...`)
+
+3. **Add optional notification secrets** (if using email/Slack):
+   - **Name**: `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`
+   - **Name**: `SLACK_WEBHOOK_URL`
+   - **Value**: Your respective credentials
+
+The `GITHUB_TOKEN` is automatically provided by GitHub.
 
 ## 🤝 Contributing
 
