@@ -170,24 +170,17 @@ class ResponseHandler {
         parsedResponse.severityBreakdown.low = 1;
         parsedResponse.summary.totalIssues = parsedResponse.summary.totalIssues + 1;
         parsedResponse.summary.qualityScore = Math.max(50, parsedResponse.summary.qualityScore - 5);
+        // Set passed to false for LOW issues so GitHub issues are created
+        parsedResponse.passed = false;
       }
       
-      // If no specific issues found, provide a positive detailed response
-      if (parsedResponse.issues.length === 0) {
-        parsedResponse.issues.push({
-          severity: 'LOW',
-          title: 'Code Quality Assessment - PASS',
-          description: `Excellent work! The AI has thoroughly reviewed your code and found no significant issues. Your code demonstrates good practices in terms of structure, security considerations, and overall quality. The implementation follows established patterns and appears to be well-thought-out.`,
-          file: 'all reviewed files',
-          line: 'N/A',
-          category: 'quality',
-          recommendation: 'Continue maintaining these high coding standards. Consider implementing automated testing if not already in place, and regularly review code quality metrics to ensure consistency across your development team.'
-        });
-        parsedResponse.severityBreakdown.low = 1;
-        parsedResponse.summary.totalIssues = 1;
-        parsedResponse.summary.qualityScore = 95;
-        parsedResponse.summary.overallStatus = 'PASS';
-      }
+             // If no specific issues found, mark as passed with no issues
+       if (parsedResponse.issues.length === 0) {
+         parsedResponse.passed = true;
+         parsedResponse.summary.overallStatus = 'PASS';
+         parsedResponse.summary.qualityScore = 95;
+         // No issues array - this will prevent GitHub issue creation
+       }
       
       return parsedResponse;
       

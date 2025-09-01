@@ -143,7 +143,20 @@ class EmailNotifier {
       // Handle missing configuration gracefully
       const emailConfig = this.config?.notifications?.email || {};
       const fromEmail = emailConfig.from_email || process.env.EMAIL_FROM || 'ai-review@github.com';
-      const toEmails = emailConfig.to_emails || [process.env.EMAIL_TO] || ['admin@example.com'];
+      
+      // Get recipient emails with better fallback handling
+      let toEmails = emailConfig.to_emails || process.env.EMAIL_TO;
+      
+      // If EMAIL_TO is a string, split it by comma
+      if (typeof toEmails === 'string') {
+        toEmails = toEmails.split(',').map(email => email.trim()).filter(email => email);
+      }
+      
+      // If still no emails, use a default
+      if (!toEmails || (Array.isArray(toEmails) && toEmails.length === 0)) {
+        toEmails = ['admin@example.com'];
+        console.warn('No email recipients configured, using default admin@example.com');
+      }
       
       const mailOptions = {
         from: fromEmail,
