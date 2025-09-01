@@ -48947,6 +48947,9 @@ ${reviewResult.issues.map(issue => `
       core.info(`   Quality Gate: ${gateResult.passed ? 'PASSED' : 'FAILED'}`);
       
       // Actually send email notifications if configured
+      let emailSent = false;
+      let emailError = null;
+      
       if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
         try {
           core.info('📧 Sending email notification...');
@@ -48969,17 +48972,25 @@ Review completed at: ${new Date().toISOString()}
           
           // Send email using EmailNotifier
           if (this.emailNotifier && this.emailNotifier.isEnabled) {
-            await this.emailNotifier.sendGenericEmail(
+            const emailResult = await this.emailNotifier.sendGenericEmail(
               emailSubject,
               emailBody,
               'ai_review_results'
             );
-            core.info('✅ Email notification sent successfully');
+            
+            if (emailResult && emailResult.sent) {
+              emailSent = true;
+              core.info('✅ Email notification sent successfully');
+            } else {
+              emailError = emailResult?.error || 'Unknown email error';
+              core.warning(`❌ Email notification failed: ${emailError}`);
+            }
           } else {
             core.info('📧 Email notification skipped (EmailNotifier not enabled)');
           }
         } catch (error) {
-          core.warning(`Failed to send email notification: ${error.message}`);
+          emailError = error.message;
+          core.error(`❌ Email notification failed with exception: ${error.message}`);
         }
       } else {
         core.info('📧 Email notification skipped (SMTP not configured)');
@@ -48998,7 +49009,14 @@ Review completed at: ${new Date().toISOString()}
         core.info('💬 Slack notification skipped (webhook not configured)');
       }
       
-      core.info('✅ Notifications processed');
+      // Final notification summary
+      if (emailSent) {
+        core.info('✅ Notifications processed - Email sent successfully');
+      } else if (emailError) {
+        core.warning(`⚠️ Notifications processed - Email failed: ${emailError}`);
+      } else {
+        core.info('✅ Notifications processed - No email attempted');
+      }
     } catch (error) {
       core.warning(`Failed to send notifications: ${error.message}`);
     }
