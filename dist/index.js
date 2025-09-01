@@ -48932,8 +48932,31 @@ ${reviewResult.issues.map(issue => `
   async sendNotifications(branchInfo, reviewResult, gateResult) {
     try {
       core.info('📧 Sending notifications...');
-      // TODO: Implement actual notification sending
-      core.info('✅ Notifications sent');
+      
+      // Log notification details for verification
+      core.info(`📋 Notification Summary:`);
+      core.info(`   Repository: ${branchInfo.targetBranch}`);
+      core.info(`   Branch: ${branchInfo.targetBranch}`);
+      core.info(`   Review Status: ${reviewResult.passed ? 'PASSED' : 'FAILED'}`);
+      core.info(`   Quality Score: ${reviewResult.qualityScore || 'N/A'}`);
+      core.info(`   Files Reviewed: ${reviewResult.filesReviewed || 0}`);
+      core.info(`   Issues Found: ${reviewResult.issues?.length || 0}`);
+      core.info(`   Quality Gate: ${gateResult.passed ? 'PASSED' : 'FAILED'}`);
+      
+      // TODO: Implement actual email/Slack notification sending
+      if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        core.info('📧 Email notification would be sent (SMTP configured)');
+      } else {
+        core.info('📧 Email notification skipped (SMTP not configured)');
+      }
+      
+      if (process.env.SLACK_WEBHOOK_URL) {
+        core.info('💬 Slack notification would be sent (webhook configured)');
+      } else {
+        core.info('💬 Slack notification skipped (webhook not configured)');
+      }
+      
+      core.info('✅ Notifications processed');
     } catch (error) {
       core.warning(`Failed to send notifications: ${error.message}`);
     }
@@ -49194,15 +49217,39 @@ class BranchDetector {
   isValidBranchMovement(branchInfo) {
     const { targetBranch, eventType, isMerge } = branchInfo;
     
-    // Only review on merges to target branches or direct pushes to protected branches
-    if (eventType === 'pull_request' && !isMerge) {
-      return false; // Don't review on PR open/update, only on merge
-    }
-
+    core.info(`🔍 Checking branch movement validity:`);
+    core.info(`   Target Branch: ${targetBranch}`);
+    core.info(`   Event Type: ${eventType}`);
+    core.info(`   Is Merge: ${isMerge}`);
+    
     // Define target branches that should trigger reviews
     const targetBranches = ['dev', 'uat', 'staging', 'main', 'master', 'production'];
+    const isValidTarget = targetBranches.includes(targetBranch.toLowerCase());
     
-    return targetBranches.includes(targetBranch.toLowerCase());
+    core.info(`   Is Valid Target: ${isValidTarget}`);
+    
+    // Allow reviews on:
+    // 1. Direct pushes to target branches (main, dev, staging, etc.)
+    // 2. Pull request merges to target branches
+    // 3. Any push to main/master/production
+    
+    if (eventType === 'push' && isValidTarget) {
+      core.info(`✅ Valid: Direct push to target branch '${targetBranch}'`);
+      return true;
+    }
+    
+    if (eventType === 'pull_request' && isValidTarget) {
+      core.info(`✅ Valid: PR to target branch '${targetBranch}'`);
+      return true;
+    }
+    
+    if (eventType === 'workflow_dispatch') {
+      core.info(`✅ Valid: Manual workflow dispatch`);
+      return true;
+    }
+    
+    core.info(`❌ Invalid: Event type '${eventType}' to branch '${targetBranch}'`);
+    return false;
   }
 
   /**

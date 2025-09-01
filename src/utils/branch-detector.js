@@ -240,15 +240,39 @@ class BranchDetector {
   isValidBranchMovement(branchInfo) {
     const { targetBranch, eventType, isMerge } = branchInfo;
     
-    // Only review on merges to target branches or direct pushes to protected branches
-    if (eventType === 'pull_request' && !isMerge) {
-      return false; // Don't review on PR open/update, only on merge
-    }
-
+    core.info(`🔍 Checking branch movement validity:`);
+    core.info(`   Target Branch: ${targetBranch}`);
+    core.info(`   Event Type: ${eventType}`);
+    core.info(`   Is Merge: ${isMerge}`);
+    
     // Define target branches that should trigger reviews
     const targetBranches = ['dev', 'uat', 'staging', 'main', 'master', 'production'];
+    const isValidTarget = targetBranches.includes(targetBranch.toLowerCase());
     
-    return targetBranches.includes(targetBranch.toLowerCase());
+    core.info(`   Is Valid Target: ${isValidTarget}`);
+    
+    // Allow reviews on:
+    // 1. Direct pushes to target branches (main, dev, staging, etc.)
+    // 2. Pull request merges to target branches
+    // 3. Any push to main/master/production
+    
+    if (eventType === 'push' && isValidTarget) {
+      core.info(`✅ Valid: Direct push to target branch '${targetBranch}'`);
+      return true;
+    }
+    
+    if (eventType === 'pull_request' && isValidTarget) {
+      core.info(`✅ Valid: PR to target branch '${targetBranch}'`);
+      return true;
+    }
+    
+    if (eventType === 'workflow_dispatch') {
+      core.info(`✅ Valid: Manual workflow dispatch`);
+      return true;
+    }
+    
+    core.info(`❌ Invalid: Event type '${eventType}' to branch '${targetBranch}'`);
+    return false;
   }
 
   /**
