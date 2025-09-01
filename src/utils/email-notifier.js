@@ -45,7 +45,7 @@ class EmailNotifier {
       throw new Error('SMTP configuration incomplete. Required: smtp_host, smtp_user, smtp_pass (via config or environment variables)');
     }
 
-    this.transporter = nodemailer.createTransporter({
+    this.transporter = nodemailer.createTransport({
       host: smtpHost,
       port: parseInt(smtpPort),
       secure: smtpSecure,
@@ -117,6 +117,17 @@ class EmailNotifier {
   }
 
   /**
+   * Send generic email (alias for sendEmail)
+   * @param {string} subject - Email subject
+   * @param {string} body - Email body (HTML)
+   * @param {string} type - Email type for tracking
+   * @returns {Promise<Object>} Email send result
+   */
+  async sendGenericEmail(subject, body, type = 'generic') {
+    return this.sendEmail(subject, body, type);
+  }
+
+  /**
    * Send generic email
    * @param {string} subject - Email subject
    * @param {string} body - Email body (HTML)
@@ -129,16 +140,19 @@ class EmailNotifier {
         throw new Error('Email transporter not initialized');
       }
 
-      const emailConfig = this.config.notifications.email;
+      // Handle missing configuration gracefully
+      const emailConfig = this.config?.notifications?.email || {};
+      const fromEmail = emailConfig.from_email || process.env.EMAIL_FROM || 'ai-review@github.com';
+      const toEmails = emailConfig.to_emails || [process.env.EMAIL_TO] || ['admin@example.com'];
       
       const mailOptions = {
-        from: emailConfig.from_email || 'ai-review@github.com',
-        to: emailConfig.to_emails.join(', '),
+        from: fromEmail,
+        to: Array.isArray(toEmails) ? toEmails.join(', ') : toEmails,
         subject: subject,
         html: body,
         headers: {
           'X-Email-Type': type,
-          'X-Repository': this.config.repository || 'unknown'
+          'X-Repository': this.config?.repository || 'unknown'
         }
       };
 
