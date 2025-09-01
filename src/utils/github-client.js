@@ -12,9 +12,10 @@ class GitHubClient {
       // GitHub token
       token: options.token || process.env.GITHUB_TOKEN,
       
-      // Repository context
-      owner: options.owner || github.context.repo.owner,
-      repo: options.repo || github.context.repo.repo,
+
+      // Repository context with fallbacks
+      owner: options.owner || (github.context?.repo?.owner) || process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
+      repo: options.repo || (github.context?.repo?.repo) || process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown',
       
       // Default settings
       defaultLabels: options.defaultLabels || ['ai-review', 'code-quality'],

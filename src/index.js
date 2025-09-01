@@ -11,6 +11,14 @@ async function main() {
     // Log action start
     core.info('🚀 Starting AI Code Review Action...');
     
+    // Verify GitHub context is available
+    core.info('🔍 Checking GitHub context...');
+    if (!github.context) {
+      core.warning('⚠️ GitHub context is not available, using environment variables');
+    } else {
+      core.info(`✅ GitHub context available: ${github.context.eventName || 'unknown'} event`);
+    }
+    
     // Get action inputs
     const inputs = {
       configPath: core.getInput('config-path', { required: false }) || '.github/ai-review-config.yml',

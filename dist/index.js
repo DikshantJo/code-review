@@ -47626,28 +47626,52 @@ const MonitoringDashboard = __nccwpck_require__(136);
  */
 class AIReviewAction {
   constructor() {
-    // Add null check and fallback for context
+    // Add comprehensive null check and fallback for context
     this.context = github.context || {};
+    
+    // Log context initialization for debugging
+    core.info('🔧 Initializing GitHub context...');
     
     // Ensure context has required properties with fallbacks
     if (!this.context.eventName) {
       this.context.eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
+      core.info(`   Event Name: ${this.context.eventName} (from env)`);
+    } else {
+      core.info(`   Event Name: ${this.context.eventName}`);
     }
+    
     if (!this.context.payload) {
       this.context.payload = {};
+      core.info('   Payload: {} (empty)');
+    } else {
+      core.info('   Payload: available');
     }
+    
     if (!this.context.repo) {
       this.context.repo = {
         owner: process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
         repo: process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown'
       };
+      core.info(`   Repository: ${this.context.repo.owner}/${this.context.repo.repo} (from env)`);
+    } else {
+      core.info(`   Repository: ${this.context.repo.owner}/${this.context.repo.repo}`);
     }
+    
     if (!this.context.sha) {
       this.context.sha = process.env.GITHUB_SHA || 'unknown';
+      core.info(`   SHA: ${this.context.sha} (from env)`);
+    } else {
+      core.info(`   SHA: ${this.context.sha}`);
     }
+    
     if (!this.context.actor) {
       this.context.actor = process.env.GITHUB_ACTOR || 'unknown';
+      core.info(`   Actor: ${this.context.actor} (from env)`);
+    } else {
+      core.info(`   Actor: ${this.context.actor}`);
     }
+    
+    core.info('✅ GitHub context initialized successfully');
     
     this.config = null;
     this.auditLogger = null;
@@ -48692,6 +48716,14 @@ async function main() {
   try {
     // Log action start
     core.info('🚀 Starting AI Code Review Action...');
+    
+    // Verify GitHub context is available
+    core.info('🔍 Checking GitHub context...');
+    if (!github.context) {
+      core.warning('⚠️ GitHub context is not available, using environment variables');
+    } else {
+      core.info(`✅ GitHub context available: ${github.context.eventName || 'unknown'} event`);
+    }
     
     // Get action inputs
     const inputs = {
@@ -52101,9 +52133,9 @@ class GitHubClient {
       // GitHub token
       token: options.token || process.env.GITHUB_TOKEN,
       
-      // Repository context
-      owner: options.owner || github.context.repo.owner,
-      repo: options.repo || github.context.repo.repo,
+      // Repository context with fallbacks
+      owner: options.owner || (github.context?.repo?.owner) || process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
+      repo: options.repo || (github.context?.repo?.repo) || process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown',
       
       // Default settings
       defaultLabels: options.defaultLabels || ['ai-review', 'code-quality'],
