@@ -80,18 +80,27 @@ class AIReviewAction {
     this.serviceAvailability = null;
     
     // Initialize core components
-    this.fileFilter = new FileFilter();
-    this.openaiClient = new OpenAIClient();
-    this.githubClient = new GitHubClient();
-    this.branchDetector = new BranchDetector();
-    this.commitParser = new CommitParser();
-    this.qualityGates = new QualityGates();
-    this.emailNotifier = new EmailNotifier();
-    this.largeCommitHandler = new LargeCommitHandler();
-    this.tokenManager = new TokenManager();
-    this.responseHandler = new ResponseHandler();
-    this.fallbackHandler = new FallbackHandler();
-    this.monitoringDashboard = null;
+    core.info('🔧 Initializing core components...');
+    
+    try {
+      this.fileFilter = new FileFilter();
+      this.openaiClient = new OpenAIClient();
+      this.githubClient = new GitHubClient({ context: this.context }); // Pass the context
+      this.branchDetector = new BranchDetector(this.context); // Pass the context
+      this.commitParser = new CommitParser();
+      this.qualityGates = new QualityGates();
+      this.emailNotifier = new EmailNotifier();
+      this.largeCommitHandler = new LargeCommitHandler();
+      this.tokenManager = new TokenManager();
+      this.responseHandler = new ResponseHandler();
+      this.fallbackHandler = new FallbackHandler();
+      this.monitoringDashboard = null;
+      
+      core.info('✅ Core components initialized successfully');
+    } catch (error) {
+      core.error(`❌ Failed to initialize core components: ${error.message}`);
+      throw error;
+    }
   }
 
   /**

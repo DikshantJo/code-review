@@ -8,9 +8,38 @@ const github = require('@actions/github');
 
 class BranchDetector {
   constructor(context) {
-    this.context = context;
-    this.eventName = context.eventName;
-    this.payload = context.payload;
+    // Add null checks and fallbacks for context
+    this.context = context || {};
+    
+    // Ensure context has required properties with fallbacks
+    if (!this.context.eventName) {
+      this.context.eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
+    }
+    if (!this.context.payload) {
+      this.context.payload = {};
+    }
+    if (!this.context.repo) {
+      this.context.repo = {
+        owner: process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
+        repo: process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown'
+      };
+    }
+    if (!this.context.sha) {
+      this.context.sha = process.env.GITHUB_SHA || 'unknown';
+    }
+    if (!this.context.actor) {
+      this.context.actor = process.env.GITHUB_ACTOR || 'unknown';
+    }
+    
+    this.eventName = this.context.eventName;
+    this.payload = this.context.payload;
+    
+    // Log context initialization for debugging
+    core.info(`🔧 BranchDetector initialized:`);
+    core.info(`   Event Name: ${this.eventName}`);
+    core.info(`   Repository: ${this.context.repo?.owner}/${this.context.repo?.repo}`);
+    core.info(`   SHA: ${this.context.sha}`);
+    core.info(`   Actor: ${this.context.actor}`);
   }
 
   /**
@@ -19,6 +48,12 @@ class BranchDetector {
    */
   detectBranches() {
     try {
+      // Add additional safety check
+      if (!this.eventName || this.eventName === 'unknown') {
+        core.warning('⚠️ Event name not available, defaulting to push event');
+        this.eventName = 'push';
+      }
+      
       switch (this.eventName) {
         case 'push':
           return this.detectPushBranches();
@@ -27,7 +62,8 @@ class BranchDetector {
         case 'workflow_dispatch':
           return this.detectManualBranches();
         default:
-          throw new Error(`Unsupported event type: ${this.eventName}`);
+          core.warning(`⚠️ Unsupported event type: ${this.eventName}, defaulting to push`);
+          return this.detectPushBranches();
       }
     } catch (error) {
       core.setFailed(`Branch detection failed: ${error.message}`);
@@ -40,9 +76,25 @@ class BranchDetector {
    * @returns {Object} Source and target branch info
    */
   detectPushBranches() {
+    // Add safety checks for context properties
+    if (!this.context.ref) {
+      core.warning('⚠️ Context ref not available, using default branch');
+      const targetBranch = 'main';
+      return {
+        sourceBranch: 'unknown',
+        targetBranch: targetBranch,
+        sourceCommit: 'unknown',
+        targetCommit: this.context.sha || 'unknown',
+        eventType: 'push',
+        isDirectPush: true,
+        isMerge: false,
+        branchType: this.getBranchType(targetBranch)
+      };
+    }
+    
     const targetBranch = this.context.ref.replace('refs/heads/', '');
-    const sourceBranch = this.payload.before; // Previous commit SHA
-    const currentCommit = this.payload.after; // Current commit SHA
+    const sourceBranch = this.payload.before || 'unknown'; // Previous commit SHA
+    const currentCommit = this.payload.after || this.context.sha || 'unknown'; // Current commit SHA
 
     return {
       sourceBranch: sourceBranch,
