@@ -48788,6 +48788,9 @@ ${reviewResult.issues.map(issue => `
       const reviewResult = await this.performReview(files, branchInfo, config);
       core.info('✅ AI review completed');
       
+      // Generate session ID for this review
+      const sessionId = `review_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
       // Check quality gates
       const gateResult = await this.checkQualityGates(sessionId, branchInfo, reviewResult);
       core.info('✅ Quality gates checked');
@@ -52426,10 +52429,9 @@ class GitHubClient {
       // GitHub token
       token: options.token || process.env.GITHUB_TOKEN,
       
-
-      // Repository context with fallbacks
-      owner: options.owner || (github.context?.repo?.owner) || process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
-      repo: options.repo || (github.context?.repo?.repo) || process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown',
+              // Repository context with fallbacks
+        owner: options.owner || (options.context?.repo?.owner) || process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
+        repo: options.repo || (options.context?.repo?.repo) || process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown',
       
       // Default settings
       defaultLabels: options.defaultLabels || ['ai-review', 'code-quality'],
@@ -52976,6 +52978,64 @@ class GitHubClient {
       }
       this.logError('Failed to get branch protection', error);
       throw new Error(`Branch protection retrieval failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get files changed in a specific commit
+   * @param {string} commitSha - Commit SHA
+   * @returns {Promise<Array>} Array of changed files
+   */
+  async getCommitFiles(commitSha) {
+    try {
+      core.info(`🔍 Getting files for commit: ${commitSha}`);
+      
+      // For testing purposes, return some sample files
+      // TODO: Implement actual GitHub API call to get commit files
+      const sampleFiles = [
+        {
+          filename: 'src/main.js',
+          status: 'modified',
+          additions: 5,
+          deletions: 2,
+          changes: 7,
+          lines: 50
+        },
+        {
+          filename: 'package.json',
+          status: 'modified',
+          additions: 1,
+          deletions: 0,
+          changes: 1,
+          lines: 30
+        }
+      ];
+      
+      core.info(`📝 Retrieved ${sampleFiles.length} sample files for testing`);
+      return sampleFiles;
+    } catch (error) {
+      core.warning(`Failed to get commit files: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Get files changed in a pull request
+   * @param {number} prNumber - Pull request number
+   * @returns {Promise<Array>} Array of changed files
+   */
+  async getPullRequestFiles(prNumber) {
+    try {
+      core.info(`🔍 Getting files for PR: ${prNumber}`);
+      
+      // For now, return an empty array since we don't have actual GitHub API implementation
+      // TODO: Implement actual GitHub API call to get PR files
+      core.info('📝 No actual files retrieved (placeholder implementation)');
+      
+      return [];
+    } catch (error) {
+      core.warning(`Failed to get PR files: ${error.message}`);
+      return [];
     }
   }
 

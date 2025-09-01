@@ -1188,6 +1188,9 @@ ${reviewResult.issues.map(issue => `
       const reviewResult = await this.performReview(files, branchInfo, config);
       core.info('✅ AI review completed');
       
+      // Generate session ID for this review
+      const sessionId = `review_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
       // Check quality gates
       const gateResult = await this.checkQualityGates(sessionId, branchInfo, reviewResult);
       core.info('✅ Quality gates checked');
