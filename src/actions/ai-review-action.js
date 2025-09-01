@@ -294,23 +294,23 @@ class AIReviewAction {
       const reviewData = {
         session_id: sessionId,
         action: 'review_start',
-        repository: this.context.repo.owner + '/' + this.context.repo.repo,
-        event_name: this.context.eventName,
-        event_action: this.context.payload.action,
-        actor: this.context.actor,
-        workflow: this.context.workflow,
-        run_id: this.context.runId,
-        sha: this.context.sha,
-        ref: this.context.ref,
-        head_ref: this.context.payload.head_ref,
-        base_ref: this.context.payload.base_ref
+        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
+        event_name: this.context.eventName || 'unknown',
+        event_action: this.context.payload?.action || 'unknown',
+        actor: this.context.actor || 'unknown',
+        workflow: this.context.workflow || 'unknown',
+        run_id: this.context.runId || 'unknown',
+        sha: this.context.sha || 'unknown',
+        ref: this.context.ref || 'unknown',
+        head_ref: this.context.payload?.head_ref || 'unknown',
+        base_ref: this.context.payload?.base_ref || 'unknown'
       };
       
       const context = {
-        user: this.context.actor,
-        repository: this.context.repo.owner + '/' + this.context.repo.repo,
-        branch: this.context.ref.replace('refs/heads/', ''),
-        commitSha: this.context.sha,
+        user: this.context.actor || 'unknown',
+        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
+        branch: this.context.ref ? this.context.ref.replace('refs/heads/', '') : 'unknown',
+        commitSha: this.context.sha || 'unknown',
         sessionId: sessionId,
         userAgent: 'AI-Code-Review-System',
         version: '1.0.0'
@@ -340,10 +340,10 @@ class AIReviewAction {
       };
       
       const context = {
-        user: this.context.actor,
-        repository: this.context.repo.owner + '/' + this.context.repo.repo,
+        user: this.context.actor || 'unknown',
+        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
         branch: branchInfo.targetBranch,
-        commitSha: this.context.sha,
+        commitSha: this.context.sha || 'unknown',
         sessionId: sessionId
       };
       
@@ -391,10 +391,10 @@ class AIReviewAction {
       };
       
       const context = {
-        user: this.context.actor,
-        repository: this.context.repo.owner + '/' + this.context.repo.repo,
+        user: this.context.actor || 'unknown',
+        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
         branch: reviewResult.targetBranch,
-        commitSha: this.context.sha,
+        commitSha: this.context.sha || 'unknown',
         sessionId: sessionId
       };
       
@@ -595,10 +595,10 @@ class AIReviewAction {
           error_stack: error.stack,
           duration_ms: duration,
           context: {
-            repository: this.context.repo.owner + '/' + this.context.repo.repo,
-            branch: this.context.ref.replace('refs/heads/', ''),
-            commit_sha: this.context.sha,
-            actor: this.context.actor
+            repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
+            branch: this.context.ref ? this.context.ref.replace('refs/heads/', '') : 'unknown',
+            commit_sha: this.context.sha || 'unknown',
+            actor: this.context.actor || 'unknown'
           }
         });
       }
@@ -610,10 +610,10 @@ class AIReviewAction {
           error_message: error.message,
           duration_ms: duration
         }, {
-          user: this.context.actor,
-          repository: this.context.repo.owner + '/' + this.context.repo.repo,
-          branch: this.context.ref.replace('refs/heads/', ''),
-          commitSha: this.context.sha,
+          user: this.context.actor || 'unknown',
+          repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
+          branch: this.context.ref ? this.context.ref.replace('refs/heads/', '') : 'unknown',
+          commitSha: this.context.sha || 'unknown',
           sessionId: sessionId
         });
       }
@@ -698,10 +698,10 @@ class AIReviewAction {
         estimated_tokens: commitAnalysis.estimatedTokens,
         recommendation: commitAnalysis.recommendation
       }, {
-        user: this.context.actor,
-        repository: this.context.repo.owner + '/' + this.context.repo.repo,
+        user: this.context.actor || 'unknown',
+        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
         branch: branchInfo.targetBranch,
-        commitSha: this.context.sha,
+        commitSha: this.context.sha || 'unknown',
         sessionId: sessionId
       });
     }
@@ -905,10 +905,10 @@ class AIReviewAction {
     return {
       files: files,
       metadata: {
-        repository: this.context.repo.owner + '/' + this.context.repo.repo,
-        branch: this.context.ref.replace('refs/heads/', ''),
-        commit: this.context.sha,
-        author: this.context.actor
+        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
+        branch: this.context.ref ? this.context.ref.replace('refs/heads/', '') : 'unknown',
+        commit: this.context.sha || 'unknown',
+        author: this.context.actor || 'unknown'
       }
     };
   }
@@ -956,7 +956,7 @@ class AIReviewAction {
 **Environment:** ${branchInfo.environment}
 **Source Branch:** ${branchInfo.sourceBranch}
 **Target Branch:** ${branchInfo.targetBranch}
-**Commit:** ${this.context.sha}
+**Commit:** ${this.context.sha || 'unknown'}
 
 ### Issues Found (${reviewResult.issues.length})
 
@@ -992,18 +992,18 @@ ${reviewResult.issues.map(issue => `
       // Prepare review data for quality gates
       const reviewData = {
         severity_breakdown: reviewResult.severityBreakdown || {},
-        commit_message: this.context.payload.head_commit?.message || '',
-        commit_author: this.context.actor,
+        commit_message: this.context.payload?.head_commit?.message || '',
+        commit_author: this.context.actor || 'unknown',
         target_branch: branchInfo.targetBranch
       };
 
       // Prepare context for quality gates
       const context = {
         sessionId: sessionId,
-        user: this.context.actor,
-        repository: this.context.repo.owner + '/' + this.context.repo.repo,
+        user: this.context.actor || 'unknown',
+        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
         branch: branchInfo.targetBranch,
-        commitSha: this.context.sha
+        commitSha: this.context.sha || 'unknown'
       };
 
       // Evaluate quality gate with comprehensive logging
@@ -1033,10 +1033,10 @@ ${reviewResult.issues.map(issue => `
           target_branch: branchInfo.targetBranch,
           environment: branchInfo.environment
         }, {
-          user: this.context.actor,
-          repository: this.context.repo.owner + '/' + this.context.repo.repo,
+          user: this.context.actor || 'unknown',
+          repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
           branch: branchInfo.targetBranch,
-          commitSha: this.context.sha,
+          commitSha: this.context.sha || 'unknown',
           sessionId: sessionId
         });
       }
