@@ -8,10 +8,9 @@ const AIReviewAction = require('./actions/ai-review-action');
  */
 async function main() {
   try {
-    // Log action start
     core.info('🚀 Starting AI Code Review Action...');
     
-    // Verify GitHub context is available
+    // Add comprehensive context logging
     core.info('🔍 Checking GitHub context...');
     if (!github.context) {
       core.warning('⚠️ GitHub context is not available, using environment variables');
@@ -19,79 +18,61 @@ async function main() {
       core.info(`✅ GitHub context available: ${github.context.eventName || 'unknown'} event`);
     }
     
-    // Get action inputs
-    const inputs = {
-      configPath: core.getInput('config-path', { required: false }) || '.github/ai-review-config.yml',
-      severityThreshold: core.getInput('severity-threshold', { required: false }) || 'MEDIUM',
-      enableProductionGates: core.getInput('enable-production-gates', { required: false }) === 'true',
-      targetBranch: core.getInput('target-branch', { required: true }),
-      timeout: parseInt(core.getInput('timeout', { required: false }) || '300'),
-      maxFiles: parseInt(core.getInput('max-files', { required: false }) || '50'),
-      maxFileSize: parseInt(core.getInput('max-file-size', { required: false }) || '1000000'),
-      teamLead: core.getInput('team-lead', { required: false }) || '',
-      emailNotifications: core.getInput('email-notifications', { required: false }) !== 'false',
-      slackNotifications: core.getInput('slack-notifications', { required: false }) === 'true',
-      logLevel: core.getInput('log-level', { required: false }) || 'INFO',
-      auditLogEnabled: core.getInput('audit-log-enabled', { required: false }) !== 'false',
-      retryAttempts: parseInt(core.getInput('retry-attempts', { required: false }) || '3'),
-      retryDelay: parseInt(core.getInput('retry-delay', { required: false }) || '5')
-    };
-
-    // Validate required inputs
-    if (!inputs.targetBranch) {
-      throw new Error('target-branch input is required');
-    }
-
-    // Log configuration
-    core.info(`📋 Configuration loaded:`);
-    core.info(`   Target Branch: ${inputs.targetBranch}`);
-    core.info(`   Severity Threshold: ${inputs.severityThreshold}`);
-    core.info(`   Production Gates: ${inputs.enableProductionGates}`);
-    core.info(`   Max Files: ${inputs.maxFiles}`);
-    core.info(`   Timeout: ${inputs.timeout}s`);
-
-    // Create and run the AI review action
+    // Log all context properties for debugging
+    core.info('📋 Context Details:');
+    core.info(`   Context object: ${JSON.stringify(github.context, null, 2)}`);
+    core.info(`   Event Name: ${github.context?.eventName || 'undefined'}`);
+    core.info(`   Payload: ${github.context?.payload ? 'available' : 'undefined'}`);
+    core.info(`   Repo: ${github.context?.repo ? 'available' : 'undefined'}`);
+    core.info(`   SHA: ${github.context?.sha || 'undefined'}`);
+    core.info(`   Actor: ${github.context?.actor || 'undefined'}`);
+    
+    // Log environment variables
+    core.info('📋 Environment Variables:');
+    core.info(`   GITHUB_EVENT_NAME: ${process.env.GITHUB_EVENT_NAME || 'undefined'}`);
+    core.info(`   GITHUB_REPOSITORY: ${process.env.GITHUB_REPOSITORY || 'undefined'}`);
+    core.info(`   GITHUB_SHA: ${process.env.GITHUB_SHA || 'undefined'}`);
+    core.info(`   GITHUB_ACTOR: ${process.env.GITHUB_ACTOR || 'undefined'}`);
+    
+    // Create AI review action with detailed logging
+    core.info('🔧 Creating AI Review Action...');
     const action = new AIReviewAction();
+    core.info('✅ AI Review Action created successfully');
     
-    // Set action outputs
-    core.setOutput('review-status', 'RUNNING');
-    core.setOutput('target-branch', inputs.targetBranch);
-    core.setOutput('severity-threshold', inputs.severityThreshold);
-    
-    // Execute the review
-    await action.run();
-    
-    // Set success outputs
-    core.setOutput('review-status', 'PASS');
-    core.setOutput('review-duration', Math.floor((Date.now() - Date.now()) / 1000));
-    
-    core.info('✅ AI Code Review completed successfully!');
+    // Execute the action
+    core.info('🚀 Executing AI Review Action...');
+    await action.execute();
+    core.info('✅ AI Code Review completed successfully');
     
   } catch (error) {
-    // Log error details
     core.error(`❌ AI Code Review failed: ${error.message}`);
+    core.error(`📍 Error Location: ${error.stack}`);
+    core.error(`📋 Error Details:`);
+    core.error(`   Name: ${error.name}`);
+    core.error(`   Message: ${error.message}`);
+    core.error(`   Stack: ${error.stack}`);
+    core.error(`   File: ${error.fileName || 'unknown'}`);
+    core.error(`   Line: ${error.lineNumber || 'unknown'}`);
+    core.error(`   Column: ${error.columnNumber || 'unknown'}`);
     
-    if (error.stack) {
-      core.debug(`Stack trace: ${error.stack}`);
-    }
+    // Log the full error object
+    core.error(`🔍 Full Error Object: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`);
     
-    // Set failure outputs
-    core.setOutput('review-status', 'FAIL');
-    core.setOutput('error-message', error.message);
-    
-    // Set the action as failed
     core.setFailed(`AI Code Review failed: ${error.message}`);
   }
 }
 
-// Export for testing
-module.exports = { main };
+// Add process error handlers
+process.on('uncaughtException', (error) => {
+  core.error(`💥 Uncaught Exception: ${error.message}`);
+  core.error(`📍 Stack: ${error.stack}`);
+  process.exit(1);
+});
 
-// Execute if this is the main module (GitHub Actions runtime)
-if (require.main === module) {
-  main().catch(error => {
-    core.error(`Unhandled error in main: ${error.message}`);
-    core.setFailed(`Unhandled error: ${error.message}`);
-    process.exit(1);
-  });
-}
+process.on('unhandledRejection', (reason, promise) => {
+  core.error(`💥 Unhandled Rejection: ${reason}`);
+  core.error(`📍 Promise: ${promise}`);
+  process.exit(1);
+});
+
+main();

@@ -8,38 +8,88 @@ const github = require('@actions/github');
 
 class BranchDetector {
   constructor(context) {
-    // Add null checks and fallbacks for context
-    this.context = context || {};
+    core.info('🔧 Starting BranchDetector constructor...');
     
-    // Ensure context has required properties with fallbacks
-    if (!this.context.eventName) {
-      this.context.eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
+    try {
+      core.info('🔍 Checking context parameter...');
+      core.info(`   context exists: ${!!context}`);
+      core.info(`   context type: ${typeof context}`);
+      core.info(`   context value: ${JSON.stringify(context, null, 2)}`);
+      
+      // Add null checks and fallbacks for context
+      this.context = context || {};
+      core.info('🔧 Initializing BranchDetector context...');
+      
+      // Ensure context has required properties with fallbacks
+      core.info('🔍 Accessing eventName...');
+      if (!this.context.eventName) {
+        core.info('   eventName is undefined/null, setting from env...');
+        this.context.eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
+        core.info(`   Event Name: ${this.context.eventName || 'unknown'} (from env)`);
+      } else {
+        core.info(`   Event Name: ${this.context.eventName || 'unknown'}`);
+      }
+      
+      core.info('🔍 Accessing payload...');
+      if (!this.context.payload) {
+        core.info('   payload is undefined/null, setting empty object...');
+        this.context.payload = {};
+        core.info('   Payload: {} (empty)');
+      } else {
+        core.info('   Payload: available');
+      }
+      
+      core.info('🔍 Accessing repo...');
+      if (!this.context.repo) {
+        core.info('   repo is undefined/null, setting from env...');
+        this.context.repo = {
+          owner: process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
+          repo: process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown'
+        };
+        core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'} (from env)`);
+      } else {
+        core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'}`);
+      }
+      
+      core.info('🔍 Accessing sha...');
+      if (!this.context.sha) {
+        core.info('   sha is undefined/null, setting from env...');
+        this.context.sha = process.env.GITHUB_SHA || 'unknown';
+        core.info(`   SHA: ${this.context.sha || 'unknown'} (from env)`);
+      } else {
+        core.info(`   SHA: ${this.context.sha || 'unknown'}`);
+      }
+      
+      core.info('🔍 Accessing actor...');
+      if (!this.context.actor) {
+        core.info('   actor is undefined/null, setting from env...');
+        this.context.actor = process.env.GITHUB_ACTOR || 'unknown';
+        core.info(`   Actor: ${this.context.actor || 'unknown'} (from env)`);
+      } else {
+        core.info(`   Actor: ${this.context.actor || 'unknown'}`);
+      }
+      
+      // Set instance properties with fallbacks
+      core.info('🔍 Setting instance properties...');
+      this.eventName = this.context.eventName || 'unknown';
+      this.payload = this.context.payload || {};
+      
+      // Log context initialization for debugging
+      core.info(`🔧 BranchDetector initialized:`);
+      core.info(`   Event Name: ${this.eventName || 'unknown'}`);
+      core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'}`);
+      core.info(`   SHA: ${this.context.sha || 'unknown'}`);
+      core.info(`   Actor: ${this.context.actor || 'unknown'}`);
+      
+      core.info('✅ BranchDetector constructor completed successfully');
+      
+    } catch (error) {
+      core.error(`💥 BranchDetector Constructor Error: ${error.message}`);
+      core.error(`📍 Constructor Error Stack: ${error.stack}`);
+      core.error(`📍 Constructor Error File: ${error.fileName || 'unknown'}`);
+      core.error(`📍 Constructor Error Line: ${error.lineNumber || 'unknown'}`);
+      throw error;
     }
-    if (!this.context.payload) {
-      this.context.payload = {};
-    }
-    if (!this.context.repo) {
-      this.context.repo = {
-        owner: process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
-        repo: process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown'
-      };
-    }
-    if (!this.context.sha) {
-      this.context.sha = process.env.GITHUB_SHA || 'unknown';
-    }
-    if (!this.context.actor) {
-      this.context.actor = process.env.GITHUB_ACTOR || 'unknown';
-    }
-    
-    this.eventName = this.context.eventName || 'unknown';
-    this.payload = this.context.payload || {};
-    
-    // Log context initialization for debugging
-    core.info(`🔧 BranchDetector initialized:`);
-    core.info(`   Event Name: ${this.eventName || 'unknown'}`);
-    core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'}`);
-    core.info(`   SHA: ${this.context.sha || 'unknown'}`);
-    core.info(`   Actor: ${this.context.actor || 'unknown'}`);
   }
 
   /**

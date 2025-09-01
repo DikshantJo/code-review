@@ -47626,81 +47626,139 @@ const MonitoringDashboard = __nccwpck_require__(136);
  */
 class AIReviewAction {
   constructor() {
-    // Add comprehensive null check and fallback for context
-    this.context = github.context || {};
-    
-    // Log context initialization for debugging
-    core.info('🔧 Initializing GitHub context...');
-    
-    // Ensure context has required properties with fallbacks
-    if (!this.context.eventName) {
-      this.context.eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
-      core.info(`   Event Name: ${this.context.eventName || 'unknown'} (from env)`);
-    } else {
-      core.info(`   Event Name: ${this.context.eventName || 'unknown'}`);
-    }
-    
-    if (!this.context.payload) {
-      this.context.payload = {};
-      core.info('   Payload: {} (empty)');
-    } else {
-      core.info('   Payload: available');
-    }
-    
-    if (!this.context.repo) {
-      this.context.repo = {
-        owner: process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
-        repo: process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown'
-      };
-      core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'} (from env)`);
-    } else {
-      core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'}`);
-    }
-    
-    if (!this.context.sha) {
-      this.context.sha = process.env.GITHUB_SHA || 'unknown';
-      core.info(`   SHA: ${this.context.sha || 'unknown'} (from env)`);
-    } else {
-      core.info(`   SHA: ${this.context.sha || 'unknown'}`);
-    }
-    
-    if (!this.context.actor) {
-      this.context.actor = process.env.GITHUB_ACTOR || 'unknown';
-      core.info(`   Actor: ${this.context.actor || 'unknown'} (from env)`);
-    } else {
-      core.info(`   Actor: ${this.context.actor || 'unknown'}`);
-    }
-    
-    core.info('✅ GitHub context initialized successfully');
-    
-    this.config = null;
-    this.auditLogger = null;
-    this.errorLogger = null;
-    this.healthChecker = null;
-    this.serviceAvailability = null;
-    
-    // Initialize core components
-    core.info('🔧 Initializing core components...');
+    core.info('🔧 Starting AIReviewAction constructor...');
     
     try {
-      this.fileFilter = new FileFilter();
-      this.openaiClient = new OpenAIClient();
-      this.githubClient = new GitHubClient({ context: this.context }); // Pass the context
-      this.branchDetector = new BranchDetector(this.context); // Pass the context
-      this.commitParser = new CommitParser();
-      this.qualityGates = new QualityGates();
-      this.emailNotifier = new EmailNotifier();
-      this.largeCommitHandler = new LargeCommitHandler();
-      this.tokenManager = new TokenManager();
-      this.responseHandler = new ResponseHandler();
-      this.fallbackHandler = new FallbackHandler();
-      this.monitoringDashboard = null;
+      core.info('🔍 Checking github.context availability...');
+      core.info(`   github.context exists: ${!!github.context}`);
+      core.info(`   github.context type: ${typeof github.context}`);
+      core.info(`   github.context value: ${JSON.stringify(github.context, null, 2)}`);
       
-      core.info('✅ Core components initialized successfully');
+      // Initialize context with comprehensive logging
+      this.context = github.context || {};
+      core.info('🔧 Initializing GitHub context...');
+      
+      // Log each property access attempt
+      core.info('🔍 Accessing eventName...');
+      if (!this.context.eventName) {
+        core.info('   eventName is undefined/null, setting from env...');
+        this.context.eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
+        core.info(`   Event Name: ${this.context.eventName || 'unknown'} (from env)`);
+      } else {
+        core.info(`   Event Name: ${this.context.eventName || 'unknown'}`);
+      }
+      
+      core.info('🔍 Accessing payload...');
+      if (!this.context.payload) {
+        core.info('   payload is undefined/null, setting empty object...');
+        this.context.payload = {};
+        core.info('   Payload: {} (empty)');
+      } else {
+        core.info('   Payload: available');
+      }
+      
+      core.info('🔍 Accessing repo...');
+      if (!this.context.repo) {
+        core.info('   repo is undefined/null, setting from env...');
+        this.context.repo = {
+          owner: process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
+          repo: process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown'
+        };
+        core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'} (from env)`);
+      } else {
+        core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'}`);
+      }
+      
+      core.info('🔍 Accessing sha...');
+      if (!this.context.sha) {
+        core.info('   sha is undefined/null, setting from env...');
+        this.context.sha = process.env.GITHUB_SHA || 'unknown';
+        core.info(`   SHA: ${this.context.sha || 'unknown'} (from env)`);
+      } else {
+        core.info(`   SHA: ${this.context.sha || 'unknown'}`);
+      }
+      
+      core.info('🔍 Accessing actor...');
+      if (!this.context.actor) {
+        core.info('   actor is undefined/null, setting from env...');
+        this.context.actor = process.env.GITHUB_ACTOR || 'unknown';
+        core.info(`   Actor: ${this.context.actor || 'unknown'} (from env)`);
+      } else {
+        core.info(`   Actor: ${this.context.actor || 'unknown'}`);
+      }
+      
+      core.info('✅ GitHub context initialized successfully');
+      
+      // Initialize other properties
+      this.config = null;
+      this.auditLogger = null;
+      this.errorLogger = null;
+      this.healthChecker = null;
+      this.serviceAvailability = null;
+      
+      core.info('🔧 Initializing core components...');
+      try {
+        core.info('   Creating FileFilter...');
+        this.fileFilter = new FileFilter();
+        core.info('   ✅ FileFilter created');
+        
+        core.info('   Creating OpenAIClient...');
+        this.openaiClient = new OpenAIClient();
+        core.info('   ✅ OpenAIClient created');
+        
+        core.info('   Creating GitHubClient...');
+        this.githubClient = new GitHubClient({ context: this.context });
+        core.info('   ✅ GitHubClient created');
+        
+        core.info('   Creating BranchDetector...');
+        this.branchDetector = new BranchDetector(this.context);
+        core.info('   ✅ BranchDetector created');
+        
+        core.info('   Creating CommitParser...');
+        this.commitParser = new CommitParser();
+        core.info('   ✅ CommitParser created');
+        
+        core.info('   Creating QualityGates...');
+        this.qualityGates = new QualityGates();
+        core.info('   ✅ QualityGates created');
+        
+        core.info('   Creating EmailNotifier...');
+        this.emailNotifier = new EmailNotifier();
+        core.info('   ✅ EmailNotifier created');
+        
+        core.info('   Creating LargeCommitHandler...');
+        this.largeCommitHandler = new LargeCommitHandler();
+        core.info('   ✅ LargeCommitHandler created');
+        
+        core.info('   Creating TokenManager...');
+        this.tokenManager = new TokenManager();
+        core.info('   ✅ TokenManager created');
+        
+        core.info('   Creating ResponseHandler...');
+        this.responseHandler = new ResponseHandler();
+        core.info('   ✅ ResponseHandler created');
+        
+        core.info('   Creating FallbackHandler...');
+        this.fallbackHandler = new FallbackHandler();
+        core.info('   ✅ FallbackHandler created');
+        
+        this.monitoringDashboard = null;
+        core.info('✅ Core components initialized successfully');
+      } catch (error) {
+        core.error(`❌ Failed to initialize core components: ${error.message}`);
+        core.error(`📍 Component Error Stack: ${error.stack}`);
+        throw error;
+      }
+      
     } catch (error) {
-      core.error(`❌ Failed to initialize core components: ${error.message}`);
+      core.error(`💥 Constructor Error: ${error.message}`);
+      core.error(`📍 Constructor Error Stack: ${error.stack}`);
+      core.error(`📍 Constructor Error File: ${error.fileName || 'unknown'}`);
+      core.error(`📍 Constructor Error Line: ${error.lineNumber || 'unknown'}`);
       throw error;
     }
+    
+    core.info('✅ AIReviewAction constructor completed successfully');
   }
 
   /**
@@ -48195,10 +48253,10 @@ class AIReviewAction {
           error_stack: error.stack,
           duration_ms: duration,
           context: {
-            repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
-            branch: this.context.ref ? this.context.ref.replace('refs/heads/', '') : 'unknown',
-            commit_sha: this.context.sha || 'unknown',
-            actor: this.context.actor || 'unknown'
+            repository: this.context.repo.owner + '/' + this.context.repo.repo,
+            branch: this.context.ref.replace('refs/heads/', ''),
+            commit_sha: this.context.sha,
+            actor: this.context.actor
           }
         });
       }
@@ -48210,10 +48268,10 @@ class AIReviewAction {
           error_message: error.message,
           duration_ms: duration
         }, {
-          user: this.context.actor || 'unknown',
-          repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
-          branch: this.context.ref ? this.context.ref.replace('refs/heads/', '') : 'unknown',
-          commitSha: this.context.sha || 'unknown',
+          user: this.context.actor,
+          repository: this.context.repo.owner + '/' + this.context.repo.repo,
+          branch: this.context.ref.replace('refs/heads/', ''),
+          commitSha: this.context.sha,
           sessionId: sessionId
         });
       }
@@ -48258,9 +48316,9 @@ class AIReviewAction {
     
     try {
       if (this.context.eventName === 'pull_request') {
-        return await this.githubClient.getPullRequestFiles(this.context.payload?.pull_request?.number);
+        return await this.githubClient.getPullRequestFiles(this.context.payload.pull_request.number);
       } else if (this.context.eventName === 'push') {
-        return await this.githubClient.getCommitFiles(this.context.sha || 'unknown');
+        return await this.githubClient.getCommitFiles(this.context.sha);
       }
       
       core.info(`Event type '${this.context.eventName}' not supported for file detection`);
@@ -48298,10 +48356,10 @@ class AIReviewAction {
         estimated_tokens: commitAnalysis.estimatedTokens,
         recommendation: commitAnalysis.recommendation
       }, {
-        user: this.context.actor || 'unknown',
-        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
+        user: this.context.actor,
+        repository: this.context.repo.owner + '/' + this.context.repo.repo,
         branch: branchInfo.targetBranch,
-        commitSha: this.context.sha || 'unknown',
+        commitSha: this.context.sha,
         sessionId: sessionId
       });
     }
@@ -48505,10 +48563,10 @@ class AIReviewAction {
     return {
       files: files,
       metadata: {
-        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
-        branch: this.context.ref ? this.context.ref.replace('refs/heads/', '') : 'unknown',
-        commit: this.context.sha || 'unknown',
-        author: this.context.actor || 'unknown'
+        repository: this.context.repo.owner + '/' + this.context.repo.repo,
+        branch: this.context.ref.replace('refs/heads/', ''),
+        commit: this.context.sha,
+        author: this.context.actor
       }
     };
   }
@@ -48556,7 +48614,7 @@ class AIReviewAction {
 **Environment:** ${branchInfo.environment}
 **Source Branch:** ${branchInfo.sourceBranch}
 **Target Branch:** ${branchInfo.targetBranch}
-**Commit:** ${this.context.sha || 'unknown'}
+**Commit:** ${this.context.sha}
 
 ### Issues Found (${reviewResult.issues.length})
 
@@ -48592,18 +48650,18 @@ ${reviewResult.issues.map(issue => `
       // Prepare review data for quality gates
       const reviewData = {
         severity_breakdown: reviewResult.severityBreakdown || {},
-        commit_message: this.context.payload?.head_commit?.message || '',
-        commit_author: this.context.actor || 'unknown',
+        commit_message: this.context.payload.head_commit?.message || '',
+        commit_author: this.context.actor,
         target_branch: branchInfo.targetBranch
       };
 
       // Prepare context for quality gates
       const context = {
         sessionId: sessionId,
-        user: this.context.actor || 'unknown',
-        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
+        user: this.context.actor,
+        repository: this.context.repo.owner + '/' + this.context.repo.repo,
         branch: branchInfo.targetBranch,
-        commitSha: this.context.sha || 'unknown'
+        commitSha: this.context.sha
       };
 
       // Evaluate quality gate with comprehensive logging
@@ -48633,10 +48691,10 @@ ${reviewResult.issues.map(issue => `
           target_branch: branchInfo.targetBranch,
           environment: branchInfo.environment
         }, {
-          user: this.context.actor || 'unknown',
-          repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
+          user: this.context.actor,
+          repository: this.context.repo.owner + '/' + this.context.repo.repo,
           branch: branchInfo.targetBranch,
-          commitSha: this.context.sha || 'unknown',
+          commitSha: this.context.sha,
           sessionId: sessionId
         });
       }
@@ -48699,117 +48757,64 @@ ${reviewResult.issues.map(issue => `
     }
     return this.monitoringDashboard.getDashboardUrl();
   }
+
+  /**
+   * Execute the AI code review
+   * @returns {Promise<Object>} Review results
+   */
+  async execute() {
+    core.info('🚀 Starting AI code review execution...');
+    
+    try {
+      // Get configuration
+      const config = await this.loadConfiguration();
+      core.info('✅ Configuration loaded');
+      
+      // Detect branches
+      const branchInfo = this.branchDetector.detectBranches();
+      core.info(`✅ Branch detection completed: ${branchInfo.targetBranch}`);
+      
+      // Check if review should be skipped
+      if (!this.branchDetector.isValidBranchMovement(branchInfo)) {
+        core.info('⏭️ Skipping review - invalid branch movement');
+        return { skipped: true, reason: 'Invalid branch movement' };
+      }
+      
+      // Get changed files
+      const files = await this.getChangedFiles();
+      core.info(`✅ Found ${files.length} changed files`);
+      
+      // Perform AI review
+      const reviewResult = await this.performReview(files, branchInfo, config);
+      core.info('✅ AI review completed');
+      
+      // Check quality gates
+      const gateResult = await this.checkQualityGates(sessionId, branchInfo, reviewResult);
+      core.info('✅ Quality gates checked');
+      
+      // Send notifications
+      await this.sendNotifications(branchInfo, reviewResult, gateResult);
+      core.info('✅ Notifications sent');
+      
+      return {
+        success: true,
+        reviewResult,
+        gateResult,
+        files: files.length
+      };
+      
+    } catch (error) {
+      core.error(`❌ Execution failed: ${error.message}`);
+      core.error(`📍 Execution Error Stack: ${error.stack}`);
+      throw error;
+    }
+  }
 }
 
-// Export for use in GitHub Actions
 module.exports = AIReviewAction;
 
 // Main execution if run directly
 if (false) {}
-
-
-/***/ }),
-
-/***/ 5105:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const core = __nccwpck_require__(7484);
-const github = __nccwpck_require__(3228);
-const AIReviewAction = __nccwpck_require__(5467);
-
-/**
- * Main entry point for the AI Code Review GitHub Action
- * This file is the entry point that GitHub Actions will execute
- */
-async function main() {
-  try {
-    // Log action start
-    core.info('🚀 Starting AI Code Review Action...');
-    
-    // Verify GitHub context is available
-    core.info('🔍 Checking GitHub context...');
-    if (!github.context) {
-      core.warning('⚠️ GitHub context is not available, using environment variables');
-    } else {
-      core.info(`✅ GitHub context available: ${github.context.eventName || 'unknown'} event`);
-    }
-    
-    // Get action inputs
-    const inputs = {
-      configPath: core.getInput('config-path', { required: false }) || '.github/ai-review-config.yml',
-      severityThreshold: core.getInput('severity-threshold', { required: false }) || 'MEDIUM',
-      enableProductionGates: core.getInput('enable-production-gates', { required: false }) === 'true',
-      targetBranch: core.getInput('target-branch', { required: true }),
-      timeout: parseInt(core.getInput('timeout', { required: false }) || '300'),
-      maxFiles: parseInt(core.getInput('max-files', { required: false }) || '50'),
-      maxFileSize: parseInt(core.getInput('max-file-size', { required: false }) || '1000000'),
-      teamLead: core.getInput('team-lead', { required: false }) || '',
-      emailNotifications: core.getInput('email-notifications', { required: false }) !== 'false',
-      slackNotifications: core.getInput('slack-notifications', { required: false }) === 'true',
-      logLevel: core.getInput('log-level', { required: false }) || 'INFO',
-      auditLogEnabled: core.getInput('audit-log-enabled', { required: false }) !== 'false',
-      retryAttempts: parseInt(core.getInput('retry-attempts', { required: false }) || '3'),
-      retryDelay: parseInt(core.getInput('retry-delay', { required: false }) || '5')
-    };
-
-    // Validate required inputs
-    if (!inputs.targetBranch) {
-      throw new Error('target-branch input is required');
-    }
-
-    // Log configuration
-    core.info(`📋 Configuration loaded:`);
-    core.info(`   Target Branch: ${inputs.targetBranch}`);
-    core.info(`   Severity Threshold: ${inputs.severityThreshold}`);
-    core.info(`   Production Gates: ${inputs.enableProductionGates}`);
-    core.info(`   Max Files: ${inputs.maxFiles}`);
-    core.info(`   Timeout: ${inputs.timeout}s`);
-
-    // Create and run the AI review action
-    const action = new AIReviewAction();
-    
-    // Set action outputs
-    core.setOutput('review-status', 'RUNNING');
-    core.setOutput('target-branch', inputs.targetBranch);
-    core.setOutput('severity-threshold', inputs.severityThreshold);
-    
-    // Execute the review
-    await action.run();
-    
-    // Set success outputs
-    core.setOutput('review-status', 'PASS');
-    core.setOutput('review-duration', Math.floor((Date.now() - Date.now()) / 1000));
-    
-    core.info('✅ AI Code Review completed successfully!');
-    
-  } catch (error) {
-    // Log error details
-    core.error(`❌ AI Code Review failed: ${error.message}`);
-    
-    if (error.stack) {
-      core.debug(`Stack trace: ${error.stack}`);
-    }
-    
-    // Set failure outputs
-    core.setOutput('review-status', 'FAIL');
-    core.setOutput('error-message', error.message);
-    
-    // Set the action as failed
-    core.setFailed(`AI Code Review failed: ${error.message}`);
-  }
-}
-
-// Export for testing
-module.exports = { main };
-
-// Execute if this is the main module (GitHub Actions runtime)
-if (require.main === require.cache[eval('__filename')]) {
-  main().catch(error => {
-    core.error(`Unhandled error in main: ${error.message}`);
-    core.setFailed(`Unhandled error: ${error.message}`);
-    process.exit(1);
-  });
-}
 
 
 /***/ }),
@@ -48827,38 +48832,88 @@ const github = __nccwpck_require__(3228);
 
 class BranchDetector {
   constructor(context) {
-    // Add null checks and fallbacks for context
-    this.context = context || {};
+    core.info('🔧 Starting BranchDetector constructor...');
     
-    // Ensure context has required properties with fallbacks
-    if (!this.context.eventName) {
-      this.context.eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
+    try {
+      core.info('🔍 Checking context parameter...');
+      core.info(`   context exists: ${!!context}`);
+      core.info(`   context type: ${typeof context}`);
+      core.info(`   context value: ${JSON.stringify(context, null, 2)}`);
+      
+      // Add null checks and fallbacks for context
+      this.context = context || {};
+      core.info('🔧 Initializing BranchDetector context...');
+      
+      // Ensure context has required properties with fallbacks
+      core.info('🔍 Accessing eventName...');
+      if (!this.context.eventName) {
+        core.info('   eventName is undefined/null, setting from env...');
+        this.context.eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
+        core.info(`   Event Name: ${this.context.eventName || 'unknown'} (from env)`);
+      } else {
+        core.info(`   Event Name: ${this.context.eventName || 'unknown'}`);
+      }
+      
+      core.info('🔍 Accessing payload...');
+      if (!this.context.payload) {
+        core.info('   payload is undefined/null, setting empty object...');
+        this.context.payload = {};
+        core.info('   Payload: {} (empty)');
+      } else {
+        core.info('   Payload: available');
+      }
+      
+      core.info('🔍 Accessing repo...');
+      if (!this.context.repo) {
+        core.info('   repo is undefined/null, setting from env...');
+        this.context.repo = {
+          owner: process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
+          repo: process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown'
+        };
+        core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'} (from env)`);
+      } else {
+        core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'}`);
+      }
+      
+      core.info('🔍 Accessing sha...');
+      if (!this.context.sha) {
+        core.info('   sha is undefined/null, setting from env...');
+        this.context.sha = process.env.GITHUB_SHA || 'unknown';
+        core.info(`   SHA: ${this.context.sha || 'unknown'} (from env)`);
+      } else {
+        core.info(`   SHA: ${this.context.sha || 'unknown'}`);
+      }
+      
+      core.info('🔍 Accessing actor...');
+      if (!this.context.actor) {
+        core.info('   actor is undefined/null, setting from env...');
+        this.context.actor = process.env.GITHUB_ACTOR || 'unknown';
+        core.info(`   Actor: ${this.context.actor || 'unknown'} (from env)`);
+      } else {
+        core.info(`   Actor: ${this.context.actor || 'unknown'}`);
+      }
+      
+      // Set instance properties with fallbacks
+      core.info('🔍 Setting instance properties...');
+      this.eventName = this.context.eventName || 'unknown';
+      this.payload = this.context.payload || {};
+      
+      // Log context initialization for debugging
+      core.info(`🔧 BranchDetector initialized:`);
+      core.info(`   Event Name: ${this.eventName || 'unknown'}`);
+      core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'}`);
+      core.info(`   SHA: ${this.context.sha || 'unknown'}`);
+      core.info(`   Actor: ${this.context.actor || 'unknown'}`);
+      
+      core.info('✅ BranchDetector constructor completed successfully');
+      
+    } catch (error) {
+      core.error(`💥 BranchDetector Constructor Error: ${error.message}`);
+      core.error(`📍 Constructor Error Stack: ${error.stack}`);
+      core.error(`📍 Constructor Error File: ${error.fileName || 'unknown'}`);
+      core.error(`📍 Constructor Error Line: ${error.lineNumber || 'unknown'}`);
+      throw error;
     }
-    if (!this.context.payload) {
-      this.context.payload = {};
-    }
-    if (!this.context.repo) {
-      this.context.repo = {
-        owner: process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
-        repo: process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown'
-      };
-    }
-    if (!this.context.sha) {
-      this.context.sha = process.env.GITHUB_SHA || 'unknown';
-    }
-    if (!this.context.actor) {
-      this.context.actor = process.env.GITHUB_ACTOR || 'unknown';
-    }
-    
-    this.eventName = this.context.eventName || 'unknown';
-    this.payload = this.context.payload || {};
-    
-    // Log context initialization for debugging
-    core.info(`🔧 BranchDetector initialized:`);
-    core.info(`   Event Name: ${this.eventName || 'unknown'}`);
-    core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'}`);
-    core.info(`   SHA: ${this.context.sha || 'unknown'}`);
-    core.info(`   Actor: ${this.context.actor || 'unknown'}`);
   }
 
   /**
@@ -60122,12 +60177,86 @@ module.exports = /*#__PURE__*/JSON.parse('{"name":"nodemailer","version":"6.10.1
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-/******/ 	
-/******/ 	// startup
-/******/ 	// Load entry module and return exports
-/******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(5105);
-/******/ 	module.exports = __webpack_exports__;
-/******/ 	
+var __webpack_exports__ = {};
+const core = __nccwpck_require__(7484);
+const github = __nccwpck_require__(3228);
+const AIReviewAction = __nccwpck_require__(5467);
+
+/**
+ * Main entry point for the AI Code Review GitHub Action
+ * This file is the entry point that GitHub Actions will execute
+ */
+async function main() {
+  try {
+    core.info('🚀 Starting AI Code Review Action...');
+    
+    // Add comprehensive context logging
+    core.info('🔍 Checking GitHub context...');
+    if (!github.context) {
+      core.warning('⚠️ GitHub context is not available, using environment variables');
+    } else {
+      core.info(`✅ GitHub context available: ${github.context.eventName || 'unknown'} event`);
+    }
+    
+    // Log all context properties for debugging
+    core.info('📋 Context Details:');
+    core.info(`   Context object: ${JSON.stringify(github.context, null, 2)}`);
+    core.info(`   Event Name: ${github.context?.eventName || 'undefined'}`);
+    core.info(`   Payload: ${github.context?.payload ? 'available' : 'undefined'}`);
+    core.info(`   Repo: ${github.context?.repo ? 'available' : 'undefined'}`);
+    core.info(`   SHA: ${github.context?.sha || 'undefined'}`);
+    core.info(`   Actor: ${github.context?.actor || 'undefined'}`);
+    
+    // Log environment variables
+    core.info('📋 Environment Variables:');
+    core.info(`   GITHUB_EVENT_NAME: ${process.env.GITHUB_EVENT_NAME || 'undefined'}`);
+    core.info(`   GITHUB_REPOSITORY: ${process.env.GITHUB_REPOSITORY || 'undefined'}`);
+    core.info(`   GITHUB_SHA: ${process.env.GITHUB_SHA || 'undefined'}`);
+    core.info(`   GITHUB_ACTOR: ${process.env.GITHUB_ACTOR || 'undefined'}`);
+    
+    // Create AI review action with detailed logging
+    core.info('🔧 Creating AI Review Action...');
+    const action = new AIReviewAction();
+    core.info('✅ AI Review Action created successfully');
+    
+    // Execute the action
+    core.info('🚀 Executing AI Review Action...');
+    await action.execute();
+    core.info('✅ AI Code Review completed successfully');
+    
+  } catch (error) {
+    core.error(`❌ AI Code Review failed: ${error.message}`);
+    core.error(`📍 Error Location: ${error.stack}`);
+    core.error(`📋 Error Details:`);
+    core.error(`   Name: ${error.name}`);
+    core.error(`   Message: ${error.message}`);
+    core.error(`   Stack: ${error.stack}`);
+    core.error(`   File: ${error.fileName || 'unknown'}`);
+    core.error(`   Line: ${error.lineNumber || 'unknown'}`);
+    core.error(`   Column: ${error.columnNumber || 'unknown'}`);
+    
+    // Log the full error object
+    core.error(`🔍 Full Error Object: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`);
+    
+    core.setFailed(`AI Code Review failed: ${error.message}`);
+  }
+}
+
+// Add process error handlers
+process.on('uncaughtException', (error) => {
+  core.error(`💥 Uncaught Exception: ${error.message}`);
+  core.error(`📍 Stack: ${error.stack}`);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  core.error(`💥 Unhandled Rejection: ${reason}`);
+  core.error(`📍 Promise: ${promise}`);
+  process.exit(1);
+});
+
+main();
+
+module.exports = __webpack_exports__;
 /******/ })()
 ;
