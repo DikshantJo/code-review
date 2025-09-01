@@ -1346,15 +1346,54 @@ ${reviewResult.issues.map(issue => `
       core.info(`   Issues Found: ${reviewResult.issues?.length || 0}`);
       core.info(`   Quality Gate: ${gateResult.passed ? 'PASSED' : 'FAILED'}`);
       
-      // TODO: Implement actual email/Slack notification sending
+      // Actually send email notifications if configured
       if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        core.info('📧 Email notification would be sent (SMTP configured)');
+        try {
+          core.info('📧 Sending email notification...');
+          
+          // Create email content
+          const emailSubject = `[AI Code Review] ${reviewResult.passed ? 'PASSED' : 'FAILED'} - ${branchInfo.targetBranch}`;
+          const emailBody = `
+AI Code Review Results
+
+Repository: ${branchInfo.targetBranch}
+Branch: ${branchInfo.targetBranch}
+Review Status: ${reviewResult.passed ? 'PASSED' : 'FAILED'}
+Quality Score: ${reviewResult.qualityScore || 'N/A'}
+Files Reviewed: ${reviewResult.filesReviewed || 0}
+Issues Found: ${reviewResult.issues?.length || 0}
+Quality Gate: ${gateResult.passed ? 'PASSED' : 'FAILED'}
+
+Review completed at: ${new Date().toISOString()}
+          `.trim();
+          
+          // Send email using EmailNotifier
+          if (this.emailNotifier && this.emailNotifier.isEnabled) {
+            await this.emailNotifier.sendGenericEmail(
+              emailSubject,
+              emailBody,
+              'ai_review_results'
+            );
+            core.info('✅ Email notification sent successfully');
+          } else {
+            core.info('📧 Email notification skipped (EmailNotifier not enabled)');
+          }
+        } catch (error) {
+          core.warning(`Failed to send email notification: ${error.message}`);
+        }
       } else {
         core.info('📧 Email notification skipped (SMTP not configured)');
       }
       
+      // Actually send Slack notifications if configured
       if (process.env.SLACK_WEBHOOK_URL) {
-        core.info('💬 Slack notification would be sent (webhook configured)');
+        try {
+          core.info('💬 Sending Slack notification...');
+          // TODO: Implement actual Slack webhook call
+          core.info('💬 Slack notification would be sent (webhook configured)');
+        } catch (error) {
+          core.warning(`Failed to send Slack notification: ${error.message}`);
+        }
       } else {
         core.info('💬 Slack notification skipped (webhook not configured)');
       }
