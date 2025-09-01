@@ -1,0 +1,295 @@
+name: AI Code Review
+
+on:
+  push:
+    branches: [dev, uat, main, master, staging, production]
+  pull_request:
+    types: [closed]
+    branches: [dev, uat, main, master, staging, production]
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Target branch to review'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - uat
+          - staging
+          - main
+          - master
+          - production
+
+env:
+  NODE_VERSION: '18'
+  # AI Review Configuration
+  AI_REVIEW_TIMEOUT: '300'  # 5 minutes timeout
+  AI_REVIEW_MAX_FILES: '50'  # Maximum files to review per commit
+  AI_REVIEW_MAX_FILE_SIZE: '1000000'  # 1MB max file size
+  
+  # Environment-specific settings
+  DEV_SEVERITY_THRESHOLD: 'LOW'
+  UAT_SEVERITY_THRESHOLD: 'MEDIUM'
+  PRODUCTION_SEVERITY_THRESHOLD: 'HIGH'
+  
+  # Notification settings
+  EMAIL_NOTIFICATIONS_ENABLED: 'true'
+  SLACK_NOTIFICATIONS_ENABLED: 'false'
+  
+  # Logging and monitoring
+  LOG_LEVEL: 'INFO'
+  AUDIT_LOG_ENABLED: 'true'
+
+jobs:
+  # Pre-flight checks and validation
+  validate:
+    name: Validate Environment
+    runs-on: ubuntu-latest
+    outputs:
+      should-proceed: ${{ steps.validate.outputs.should-proceed }}
+      target-branch: ${{ steps.validate.outputs.target-branch }}
+      severity-threshold: ${{ steps.validate.outputs.severity-threshold }}
+      enable-production-gates: ${{ steps.validate.outputs.enable-production-gates }}
+    
+    steps:
+      - name: Validate workflow trigger
+        id: validate
+        run: |
+          # Check if this is a valid trigger
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "should-proceed=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.pull_request.merged }}" == "true" ]]; then
+            echo "should-proceed=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-proceed=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-proceed=false" >> $GITHUB_OUTPUT
+            echo "Skipping AI review - invalid trigger conditions"
+            exit 0
+          fi
+          
+          # Determine target branch
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "target-branch=${{ github.event.inputs.target_branch }}" >> $GITHUB_OUTPUT
+          else
+            echo "target-branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+          
+          # Set environment-specific variables
+          TARGET_BRANCH="${{ github.event.inputs.target_branch || github.ref_name }}"
+          if [[ "$TARGET_BRANCH" == "dev" ]]; then
+            echo "severity-threshold=${{ env.DEV_SEVERITY_THRESHOLD }}" >> $GITHUB_OUTPUT
+            echo "enable-production-gates=false" >> $GITHUB_OUTPUT
+          elif [[ "$TARGET_BRANCH" == "uat" ]]; then
+            echo "severity-threshold=${{ env.UAT_SEVERITY_THRESHOLD }}" >> $GITHUB_OUTPUT
+            echo "enable-production-gates=false" >> $GITHUB_OUTPUT
+          elif [[ "$TARGET_BRANCH" == "main" || "$TARGET_BRANCH" == "master" || "$TARGET_BRANCH" == "production" ]]; then
+            echo "severity-threshold=${{ env.PRODUCTION_SEVERITY_THRESHOLD }}" >> $GITHUB_OUTPUT
+            echo "enable-production-gates=true" >> $GITHUB_OUTPUT
+          else
+            echo "severity-threshold=MEDIUM" >> $GITHUB_OUTPUT
+            echo "enable-production-gates=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Setup and preparation
+  setup:
+    name: Setup Environment
+    runs-on: ubuntu-latest
+    needs: validate
+    if: needs.validate.outputs.should-proceed == 'true'
+    outputs:
+      setup-complete: ${{ steps.setup-complete.outputs.status }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for diff analysis
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Verify configuration
+        run: |
+          # Check if AI review config exists
+          if [ ! -f ".github/ai-review-config.yml" ]; then
+            echo "Warning: No AI review configuration found. Using defaults."
+          fi
+          
+          # Check if required secrets are available
+          if [ -z "${{ secrets.OPENAI_API_KEY }}" ]; then
+            echo "Error: OPENAI_API_KEY secret is required"
+            exit 1
+          fi
+      
+      - name: Mark setup complete
+        id: setup-complete
+        run: echo "status=success" >> $GITHUB_OUTPUT
+
+  # Parallel jobs for different aspects of the review
+  file-analysis:
+    name: File Analysis
+    runs-on: ubuntu-latest
+    needs: [validate, setup]
+    if: needs.validate.outputs.should-proceed == 'true' && needs.setup.outputs.setup-complete == 'success'
+    outputs:
+      files-to-review: ${{ steps.file-analysis.outputs.files }}
+      total-files: ${{ steps.file-analysis.outputs.total }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Analyze changed files
+        id: file-analysis
+        run: |
+          # Get list of changed files
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # For PRs, get files changed in the PR
+            FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          else
+            # For pushes, get files changed in the last commit
+            FILES=$(git diff --name-only HEAD~1 HEAD)
+          fi
+          
+          # Filter out excluded files and count
+          FILTERED_FILES=""
+          TOTAL_COUNT=0
+          
+          while IFS= read -r file; do
+            if [[ -n "$file" ]]; then
+              # Apply file filtering logic here
+              if [[ ! "$file" =~ \.(sql|db|sqlite|env|log|key|pem|p12|pfx|jpg|jpeg|png|gif|svg|exe|dll|so|jar)$ ]] && \
+                 [[ ! "$file" =~ ^(config\.|.*\.conf|.*\.ini|.*\.yaml|.*\.yml)$ ]] && \
+                 [[ ! "$file" =~ ^logs/ ]]; then
+                FILTERED_FILES="$FILTERED_FILES $file"
+                ((TOTAL_COUNT++))
+              fi
+            fi
+          done <<< "$FILES"
+          
+          echo "files=$FILTERED_FILES" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL_COUNT" >> $GITHUB_OUTPUT
+          
+          echo "Found $TOTAL_COUNT files to review"
+          echo "Files: $FILTERED_FILES"
+
+  # Main AI review job
+  ai-code-review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+    needs: [validate, setup, file-analysis]
+    if: needs.validate.outputs.should-proceed == 'true' && needs.setup.outputs.setup-complete == 'success'
+    outputs:
+      review-status: ${{ steps.ai-review.outputs.status }}
+      issues-found: ${{ steps.ai-review.outputs.issues }}
+      severity-breakdown: ${{ steps.ai-review.outputs.severity }}
+      review-duration: ${{ steps.ai-review.outputs.duration }}
+      files-reviewed: ${{ needs.file-analysis.outputs.total-files }}
+      production-blocked: ${{ steps.ai-review.outputs.blocked }}
+      override-used: ${{ steps.ai-review.outputs.override }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run AI Code Review
+        id: ai-review
+        uses: ./
+        env:
+          # Required secrets
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          
+          # Optional secrets (with fallbacks)
+          EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST || '' }}
+          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT || '587' }}
+          EMAIL_SMTP_USER: ${{ secrets.EMAIL_SMTP_USER || '' }}
+          EMAIL_SMTP_PASS: ${{ secrets.EMAIL_SMTP_PASS || '' }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM || 'ai-review@github.com' }}
+          
+          # Slack integration (optional)
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL || '' }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL || '#ai-reviews' }}
+          
+          # Monitoring and logging
+          LOG_LEVEL: ${{ env.LOG_LEVEL }}
+          AUDIT_LOG_ENABLED: ${{ env.AUDIT_LOG_ENABLED }}
+          
+          # AI Review settings
+          AI_REVIEW_TIMEOUT: ${{ env.AI_REVIEW_TIMEOUT }}
+          AI_REVIEW_MAX_FILES: ${{ env.AI_REVIEW_MAX_FILES }}
+          AI_REVIEW_MAX_FILE_SIZE: ${{ env.AI_REVIEW_MAX_FILE_SIZE }}
+          
+          # Notification settings
+          EMAIL_NOTIFICATIONS_ENABLED: ${{ env.EMAIL_NOTIFICATIONS_ENABLED }}
+          SLACK_NOTIFICATIONS_ENABLED: ${{ env.SLACK_NOTIFICATIONS_ENABLED }}
+        with:
+          config-path: '.github/ai-review-config.yml'
+          severity-threshold: ${{ needs.validate.outputs.severity-threshold }}
+          enable-production-gates: ${{ needs.validate.outputs.enable-production-gates }}
+          target-branch: ${{ needs.validate.outputs.target-branch }}
+          timeout: ${{ env.AI_REVIEW_TIMEOUT }}
+          max-files: ${{ env.AI_REVIEW_MAX_FILES }}
+          max-file-size: ${{ env.AI_REVIEW_MAX_FILE_SIZE }}
+
+  # Post-review processing and notifications
+  post-review:
+    name: Post-Review Processing
+    runs-on: ubuntu-latest
+    needs: [validate, ai-code-review]
+    if: always() && needs.validate.outputs.should-proceed == 'true'
+    
+    steps:
+      - name: Create Review Summary
+        if: always()
+        run: |
+          echo "## AI Code Review Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ needs.validate.outputs.target-branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ needs.ai-code-review.outputs.review-status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Issues Found**: ${{ needs.ai-code-review.outputs.issues-found }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Files Reviewed**: ${{ needs.ai-code-review.outputs.files-reviewed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Duration**: ${{ needs.ai-code-review.outputs.review-duration }}s" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.ai-code-review.outputs.production-blocked }}" == "true" ]]; then
+            echo "- **Production Blocked**: ✅" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.ai-code-review.outputs.override-used }}" == "true" ]]; then
+            echo "- **Emergency Override Used**: ⚠️" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Handle Review Failure
+        if: needs.ai-code-review.outputs.review-status == 'FAIL' || needs.ai-code-review.outputs.review-status == 'ERROR'
+        run: |
+          echo "AI Code Review failed or found issues"
+          echo "Review Status: ${{ needs.ai-code-review.outputs.review-status }}"
+          echo "Issues Found: ${{ needs.ai-code-review.outputs.issues-found }}"
+          
+          # Additional failure handling logic can be added here
+      
+      - name: Success Notification
+        if: needs.ai-code-review.outputs.review-status == 'PASS'
+        run: |
+          echo "✅ AI Code Review completed successfully"
+          echo "No issues found in the code review"

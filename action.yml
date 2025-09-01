@@ -1,0 +1,112 @@
+name: 'AI Code Review'
+description: 'Automated AI-powered code review using OpenAI GPT-4 for security, performance, and code quality analysis'
+
+author: 'AI Code Review Team'
+
+inputs:
+  # Configuration
+  config-path:
+    description: 'Path to the AI review configuration file'
+    required: false
+    default: '.github/ai-review-config.yml'
+  
+  # Review Settings
+  severity-threshold:
+    description: 'Minimum severity level to report (LOW, MEDIUM, HIGH)'
+    required: false
+    default: 'MEDIUM'
+  
+  enable-production-gates:
+    description: 'Enable production quality gates to block high-severity issues'
+    required: false
+    default: 'false'
+  
+  target-branch:
+    description: 'Target branch being reviewed'
+    required: true
+  
+  # Performance Controls
+  timeout:
+    description: 'Timeout for AI review in seconds'
+    required: false
+    default: '300'
+  
+  max-files:
+    description: 'Maximum number of files to review per commit'
+    required: false
+    default: '50'
+  
+  max-file-size:
+    description: 'Maximum file size in bytes to include in review'
+    required: false
+    default: '1000000'
+  
+  # Notification Settings
+  team-lead:
+    description: 'GitHub username of team lead for issue assignment'
+    required: false
+    default: ''
+  
+  email-notifications:
+    description: 'Enable email notifications for review failures'
+    required: false
+    default: 'true'
+  
+  slack-notifications:
+    description: 'Enable Slack notifications for review failures'
+    required: false
+    default: 'false'
+  
+  # Advanced Settings
+  log-level:
+    description: 'Logging level (DEBUG, INFO, WARN, ERROR)'
+    required: false
+    default: 'INFO'
+  
+  audit-log-enabled:
+    description: 'Enable audit logging for compliance'
+    required: false
+    default: 'true'
+  
+  retry-attempts:
+    description: 'Number of retry attempts for AI API calls'
+    required: false
+    default: '3'
+  
+  retry-delay:
+    description: 'Delay between retry attempts in seconds'
+    required: false
+    default: '5'
+
+outputs:
+  review-status:
+    description: 'Status of the AI review (PASS, FAIL, ERROR)'
+  
+  issues-found:
+    description: 'Number of issues found during review'
+  
+  severity-breakdown:
+    description: 'JSON object with count of issues by severity level'
+  
+  review-duration:
+    description: 'Time taken for the review in seconds'
+  
+  files-reviewed:
+    description: 'Number of files reviewed'
+  
+  production-blocked:
+    description: 'Whether the merge was blocked due to production quality gates'
+  
+  override-used:
+    description: 'Whether an emergency override was used'
+
+runs:
+  using: 'node18'
+  main: 'dist/index.js'
+
+branding:
+  icon: 'shield-check'
+  color: 'blue'
+
+
+

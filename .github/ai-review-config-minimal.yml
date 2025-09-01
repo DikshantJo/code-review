@@ -1,0 +1,55 @@
+# Minimal AI Code Review Configuration
+# Copy this file to .github/ai-review-config.yml and customize as needed
+
+version: '1.0'
+enabled: true
+
+# Basic settings
+global:
+  severity_threshold: 'MEDIUM'
+  max_files_per_review: 50
+
+# Environment-specific settings
+environments:
+  development:
+    severity_threshold: 'LOW'
+  staging:
+    severity_threshold: 'MEDIUM'
+  production:
+    severity_threshold: 'HIGH'
+
+# Basic rules
+rules:
+  security:
+    enabled: true
+    priority: 'HIGH'
+  logic:
+    enabled: true
+    priority: 'HIGH'
+  performance:
+    enabled: true
+    priority: 'MEDIUM'
+  standards:
+    enabled: true
+    priority: 'MEDIUM'
+
+# File filtering
+file_filtering:
+  exclude_patterns:
+    - '*.sql'
+    - '.env*'
+    - '*.log'
+    - 'node_modules/**/*'
+    - 'dist/**/*'
+    - 'build/**/*'
+
+# Notifications
+notifications:
+  github_issues:
+    enabled: true
+    assign_to_team_lead: true
+    team_lead_username: 'your-team-lead-username'
+    issue_labels: ['ai-review']
+
+
+

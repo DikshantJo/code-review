@@ -1,0 +1,264 @@
+# AI Code Review Configuration
+# This file configures the AI-powered code review system for this repository
+
+version: '1.0'
+enabled: true
+
+# Global settings applied to all environments
+global:
+  severity_threshold: 'MEDIUM'
+  max_files_per_review: 50
+  max_file_size_bytes: 1000000
+  timeout_seconds: 300
+  retry_attempts: 3
+  retry_delay_seconds: 5
+
+# Environment-specific configurations
+environments:
+  development:
+    severity_threshold: 'LOW'
+    max_files_per_review: 100
+    timeout_seconds: 600
+    rules:
+      security: { enabled: true, priority: 'HIGH' }
+      logic: { enabled: true, priority: 'HIGH' }
+      performance: { enabled: true, priority: 'MEDIUM' }
+      standards: { enabled: true, priority: 'MEDIUM' }
+      maintainability: { enabled: true, priority: 'LOW' }
+
+  staging:
+    severity_threshold: 'MEDIUM'
+    max_files_per_review: 75
+    timeout_seconds: 450
+    rules:
+      security: { enabled: true, priority: 'HIGH' }
+      logic: { enabled: true, priority: 'HIGH' }
+      performance: { enabled: true, priority: 'MEDIUM' }
+      standards: { enabled: true, priority: 'MEDIUM' }
+      maintainability: { enabled: true, priority: 'LOW' }
+
+  production:
+    severity_threshold: 'HIGH'
+    max_files_per_review: 50
+    timeout_seconds: 300
+    rules:
+      security: { enabled: true, priority: 'HIGH' }
+      logic: { enabled: true, priority: 'HIGH' }
+      performance: { enabled: true, priority: 'HIGH' }
+      standards: { enabled: true, priority: 'MEDIUM' }
+      maintainability: { enabled: true, priority: 'LOW' }
+
+# Rule definitions
+rules:
+  security:
+    enabled: true
+    priority: 'HIGH'
+    checks:
+      - 'SQL injection vulnerabilities'
+      - 'XSS vulnerabilities'
+      - 'CSRF vulnerabilities'
+      - 'Authentication bypass'
+      - 'Authorization flaws'
+      - 'Input validation issues'
+      - 'Sensitive data exposure'
+      - 'Insecure dependencies'
+    custom_patterns: []
+    excluded_files:
+      - '*.test.js'
+      - '*.spec.js'
+      - 'tests/**/*'
+
+  logic:
+    enabled: true
+    priority: 'HIGH'
+    checks:
+      - 'Null pointer exceptions'
+      - 'Array bounds checking'
+      - 'Type safety issues'
+      - 'Race conditions'
+      - 'Deadlock potential'
+      - 'Resource leaks'
+      - 'Error handling gaps'
+      - 'Edge case handling'
+    custom_patterns: []
+    excluded_files:
+      - '*.test.js'
+      - '*.spec.js'
+      - 'tests/**/*'
+
+  performance:
+    enabled: true
+    priority: 'MEDIUM'
+    checks:
+      - 'Inefficient algorithms'
+      - 'Memory leaks'
+      - 'Unnecessary computations'
+      - 'Database query optimization'
+      - 'Network call optimization'
+      - 'Resource usage patterns'
+      - 'Caching opportunities'
+      - 'Async/await usage'
+    custom_patterns: []
+    excluded_files:
+      - '*.test.js'
+      - '*.spec.js'
+      - 'tests/**/*'
+
+  standards:
+    enabled: true
+    priority: 'MEDIUM'
+    checks:
+      - 'Code style consistency'
+      - 'Naming conventions'
+      - 'Function complexity'
+      - 'Code duplication'
+      - 'Documentation quality'
+      - 'Error handling patterns'
+      - 'Logging standards'
+      - 'Testing coverage'
+    custom_patterns: []
+    excluded_files:
+      - '*.test.js'
+      - '*.spec.js'
+      - 'tests/**/*'
+
+  maintainability:
+    enabled: true
+    priority: 'LOW'
+    checks:
+      - 'Code readability'
+      - 'Function length'
+      - 'Class design'
+      - 'Separation of concerns'
+      - 'Dependency management'
+      - 'Configuration management'
+      - 'Code organization'
+      - 'Future-proofing'
+    custom_patterns: []
+    excluded_files:
+      - '*.test.js'
+      - '*.spec.js'
+      - 'tests/**/*'
+
+# File filtering configuration
+file_filtering:
+  exclude_patterns:
+    - '*.sql'
+    - '*.db'
+    - '*.sqlite'
+    - '.env*'
+    - '*.env'
+    - '*.log'
+    - 'logs/**/*'
+    - '*.key'
+    - '*.pem'
+    - '*.p12'
+    - '*.pfx'
+    - '*.jpg'
+    - '*.png'
+    - '*.gif'
+    - '*.svg'
+    - '*.exe'
+    - '*.dll'
+    - '*.so'
+    - '*.jar'
+    - 'node_modules/**/*'
+    - '.git/**/*'
+    - 'dist/**/*'
+    - 'build/**/*'
+    - 'coverage/**/*'
+  include_patterns: []
+  max_file_size_bytes: 1000000
+  max_files_per_review: 50
+
+# Notification settings
+notifications:
+  github_issues:
+    enabled: true
+    assign_to_team_lead: true
+    team_lead_username: 'team-lead'
+    issue_labels:
+      - 'ai-review'
+      - 'code-quality'
+    issue_template: 'default'
+
+  email:
+    enabled: false
+    smtp_host: ''
+    smtp_port: 587
+    smtp_user: ''
+    smtp_pass: ''
+    from_email: 'ai-review@github.com'
+    to_emails: []
+
+  slack:
+    enabled: false
+    webhook_url: ''
+    channel: '#ai-reviews'
+    notify_on_failure_only: true
+
+# Production quality gates (optional feature)
+quality_gates:
+  enabled: false
+  block_high_severity: true
+  block_medium_severity: false
+  allow_urgent_override: true
+  urgent_keywords:
+    - 'URGENT'
+    - 'EMERGENCY'
+    - 'HOTFIX'
+  override_logging: true
+  max_override_frequency: 5
+
+# AI settings
+ai:
+  model: 'gpt-4'
+  temperature: 0.1
+  max_tokens: 8000
+  system_prompt_template: 'default'
+  response_format: 'json'
+  language_specific_prompts: true
+
+# Logging and monitoring
+logging:
+  level: 'INFO'
+  audit_trail: true
+  performance_metrics: true
+  error_reporting: true
+  log_retention_days: 30
+
+# Monitoring and alerting
+monitoring:
+  dashboard_dir: './logs/dashboard'
+  dashboard_url: 'http://localhost:3000'
+  auto_refresh_interval: 30  # seconds
+  alerts:
+    response_time_threshold: 60000  # 60 seconds
+    error_rate_threshold: 0.1  # 10%
+    quality_score_threshold: 0.6  # 60%
+    cost_threshold: 5.0  # $5 per review
+    failure_rate_threshold: 0.05  # 5%
+    volume_threshold: 100  # 100 reviews per hour
+    
+    # Alert channels
+    email:
+      enabled: true
+      recipients: ['team-lead@company.com']
+      subject_prefix: '[AI Review Alert]'
+    
+    slack:
+      enabled: false
+      webhook_url: ''
+      channel: '#ai-reviews'
+      username: 'AI Review Bot'
+    
+    github:
+      enabled: true
+      create_issues: true
+      issue_labels: ['monitoring', 'alert']
+    
+    webhook:
+      enabled: false
+      url: ''
+      headers: {}
+      timeout: 10000
