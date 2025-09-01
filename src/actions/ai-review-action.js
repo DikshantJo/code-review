@@ -1250,7 +1250,7 @@ ${reviewResult.issues.map(issue => `
    * @param {Object} config - Configuration object
    * @returns {Promise<Object>} Review results
    */
-  async performReview(files, branchInfo, config) {
+    async performReview(files, branchInfo, config) {
     core.info('🤖 Starting AI code review...');
     
     try {
@@ -1271,29 +1271,69 @@ ${reviewResult.issues.map(issue => `
         };
       }
 
-      // Simulate AI review for now
-      // TODO: Implement actual OpenAI API call
+      // Prepare content for AI review
+      const reviewContent = this.prepareReviewContent(files, branchInfo);
+      core.info(`📝 Prepared ${files.length} files for AI review`);
+      
+      // Call the real AI review
+      const startTime = Date.now();
+      core.info('🤖 Calling OpenAI API for code review...');
+      
+      const aiResponse = await this.openaiClient.reviewCode(reviewContent, config);
+      core.info('📡 Received response from OpenAI API');
+      
+      // Log the actual AI response
+      core.info('🤖 AI Response Details:');
+      core.info(`   Model: ${aiResponse.model || 'unknown'}`);
+      core.info(`   Tokens Used: ${aiResponse.usage?.total_tokens || 'unknown'}`);
+      core.info(`   Response Length: ${JSON.stringify(aiResponse).length} characters`);
+      
+      // Parse and validate the AI response
+      const parsedResponse = await this.responseHandler.parseResponse(aiResponse);
+      core.info('✅ AI response parsed successfully');
+      
+      // Calculate timing metrics
+      const aiResponseTime = Date.now() - startTime;
+      
+      // Calculate quality score
+      const qualityScore = this.calculateQualityScore(parsedResponse, { filesCount: files.length });
+      
       const reviewResult = {
-        passed: true,
-        issues: [],
+        passed: parsedResponse.passed,
+        issues: parsedResponse.issues || [],
         targetBranch: branchInfo.targetBranch,
         environment: branchInfo.branchType,
         filesReviewed: files.length,
         linesOfCode: files.reduce((total, file) => total + (file.lines || 0), 0),
         reviewCoverage: 100,
-        aiResponseTime: 100,
-        tokensUsed: 50,
-        modelUsed: 'gpt-4',
-        qualityScore: 95,
-        severityBreakdown: {
+        aiResponseTime: aiResponseTime,
+        tokensUsed: aiResponse.usage?.total_tokens || 0,
+        modelUsed: aiResponse.model || 'gpt-4',
+        qualityScore: qualityScore,
+        severityBreakdown: parsedResponse.severityBreakdown || {
           critical: 0,
           high: 0,
           medium: 0,
           low: 0
-        }
+        },
+        // Store the raw AI response for detailed logging
+        rawAIResponse: aiResponse,
+        parsedAIResponse: parsedResponse
       };
 
       core.info(`✅ AI review completed: ${reviewResult.filesReviewed} files reviewed`);
+      core.info(`📊 Review Summary: Quality Score ${qualityScore}, ${reviewResult.issues.length} issues found`);
+      
+      // Log detailed AI findings if any
+      if (reviewResult.issues && reviewResult.issues.length > 0) {
+        core.info('🔍 AI Found Issues:');
+        reviewResult.issues.forEach((issue, index) => {
+          core.info(`   ${index + 1}. [${issue.severity}] ${issue.title} - ${issue.file}:${issue.line || 'N/A'}`);
+        });
+      } else {
+        core.info('✅ No issues found by AI');
+      }
+      
       return reviewResult;
       
     } catch (error) {
