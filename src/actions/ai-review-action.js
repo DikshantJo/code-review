@@ -26,7 +26,29 @@ const MonitoringDashboard = require('../utils/monitoring-dashboard');
  */
 class AIReviewAction {
   constructor() {
-    this.context = github.context;
+    // Add null check and fallback for context
+    this.context = github.context || {};
+    
+    // Ensure context has required properties with fallbacks
+    if (!this.context.eventName) {
+      this.context.eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
+    }
+    if (!this.context.payload) {
+      this.context.payload = {};
+    }
+    if (!this.context.repo) {
+      this.context.repo = {
+        owner: process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
+        repo: process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown'
+      };
+    }
+    if (!this.context.sha) {
+      this.context.sha = process.env.GITHUB_SHA || 'unknown';
+    }
+    if (!this.context.actor) {
+      this.context.actor = process.env.GITHUB_ACTOR || 'unknown';
+    }
+    
     this.config = null;
     this.auditLogger = null;
     this.errorLogger = null;
@@ -595,14 +617,25 @@ class AIReviewAction {
    * Get changed files from the event
    */
   async getChangedFiles() {
-    // Implementation depends on the event type (push, pull_request, etc.)
-    if (this.context.eventName === 'pull_request') {
-      return await this.githubClient.getPullRequestFiles(this.context.payload.pull_request.number);
-    } else if (this.context.eventName === 'push') {
-      return await this.githubClient.getCommitFiles(this.context.sha);
+    // Add defensive checks
+    if (!this.context || !this.context.eventName) {
+      core.warning('GitHub context not available, cannot determine changed files');
+      return [];
     }
     
-    return [];
+    try {
+      if (this.context.eventName === 'pull_request') {
+        return await this.githubClient.getPullRequestFiles(this.context.payload.pull_request.number);
+      } else if (this.context.eventName === 'push') {
+        return await this.githubClient.getCommitFiles(this.context.sha);
+      }
+      
+      core.info(`Event type '${this.context.eventName}' not supported for file detection`);
+      return [];
+    } catch (error) {
+      core.warning(`Failed to get changed files: ${error.message}`);
+      return [];
+    }
   }
 
   /**
