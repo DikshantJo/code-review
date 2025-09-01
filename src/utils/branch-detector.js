@@ -37,9 +37,9 @@ class BranchDetector {
     // Log context initialization for debugging
     core.info(`🔧 BranchDetector initialized:`);
     core.info(`   Event Name: ${this.eventName}`);
-    core.info(`   Repository: ${this.context.repo?.owner}/${this.context.repo?.repo}`);
-    core.info(`   SHA: ${this.context.sha}`);
-    core.info(`   Actor: ${this.context.actor}`);
+    core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'}`);
+    core.info(`   SHA: ${this.context.sha || 'unknown'}`);
+    core.info(`   Actor: ${this.context.actor || 'unknown'}`);
   }
 
   /**
@@ -92,7 +92,7 @@ class BranchDetector {
       };
     }
     
-    const targetBranch = this.context.ref.replace('refs/heads/', '');
+    const targetBranch = this.context.ref ? this.context.ref.replace('refs/heads/', '') : 'main';
     const sourceBranch = this.payload.before || 'unknown'; // Previous commit SHA
     const currentCommit = this.payload.after || this.context.sha || 'unknown'; // Current commit SHA
 
@@ -146,7 +146,7 @@ class BranchDetector {
    */
   detectManualBranches() {
     const targetBranch = this.payload.inputs?.target_branch || 'dev';
-    const currentCommit = this.context.sha;
+    const currentCommit = this.context.sha || 'unknown';
 
     return {
       sourceBranch: null,
@@ -271,10 +271,10 @@ class BranchDetector {
   getDetailedInfo(branchInfo) {
     return {
       ...branchInfo,
-      repository: this.context.repo,
-      workflow: this.context.workflow,
-      runId: this.context.runId,
-      actor: this.context.actor,
+      repository: this.context.repo || {},
+      workflow: this.context.workflow || 'unknown',
+      runId: this.context.runId || 'unknown',
+      actor: this.context.actor || 'unknown',
       timestamp: new Date().toISOString()
     };
   }

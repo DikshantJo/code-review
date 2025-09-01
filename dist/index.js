@@ -47635,9 +47635,9 @@ class AIReviewAction {
     // Ensure context has required properties with fallbacks
     if (!this.context.eventName) {
       this.context.eventName = process.env.GITHUB_EVENT_NAME || 'unknown';
-      core.info(`   Event Name: ${this.context.eventName} (from env)`);
+      core.info(`   Event Name: ${this.context.eventName || 'unknown'} (from env)`);
     } else {
-      core.info(`   Event Name: ${this.context.eventName}`);
+      core.info(`   Event Name: ${this.context.eventName || 'unknown'}`);
     }
     
     if (!this.context.payload) {
@@ -47652,23 +47652,23 @@ class AIReviewAction {
         owner: process.env.GITHUB_REPOSITORY_OWNER || 'unknown',
         repo: process.env.GITHUB_REPOSITORY?.split('/')[1] || 'unknown'
       };
-      core.info(`   Repository: ${this.context.repo.owner}/${this.context.repo.repo} (from env)`);
+      core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'} (from env)`);
     } else {
-      core.info(`   Repository: ${this.context.repo.owner}/${this.context.repo.repo}`);
+      core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'}`);
     }
     
     if (!this.context.sha) {
       this.context.sha = process.env.GITHUB_SHA || 'unknown';
-      core.info(`   SHA: ${this.context.sha} (from env)`);
+      core.info(`   SHA: ${this.context.sha || 'unknown'} (from env)`);
     } else {
-      core.info(`   SHA: ${this.context.sha}`);
+      core.info(`   SHA: ${this.context.sha || 'unknown'}`);
     }
     
     if (!this.context.actor) {
       this.context.actor = process.env.GITHUB_ACTOR || 'unknown';
-      core.info(`   Actor: ${this.context.actor} (from env)`);
+      core.info(`   Actor: ${this.context.actor || 'unknown'} (from env)`);
     } else {
-      core.info(`   Actor: ${this.context.actor}`);
+      core.info(`   Actor: ${this.context.actor || 'unknown'}`);
     }
     
     core.info('✅ GitHub context initialized successfully');
@@ -48258,9 +48258,9 @@ class AIReviewAction {
     
     try {
       if (this.context.eventName === 'pull_request') {
-        return await this.githubClient.getPullRequestFiles(this.context.payload.pull_request.number);
+        return await this.githubClient.getPullRequestFiles(this.context.payload?.pull_request?.number);
       } else if (this.context.eventName === 'push') {
-        return await this.githubClient.getCommitFiles(this.context.sha);
+        return await this.githubClient.getCommitFiles(this.context.sha || 'unknown');
       }
       
       core.info(`Event type '${this.context.eventName}' not supported for file detection`);
@@ -48856,9 +48856,9 @@ class BranchDetector {
     // Log context initialization for debugging
     core.info(`🔧 BranchDetector initialized:`);
     core.info(`   Event Name: ${this.eventName}`);
-    core.info(`   Repository: ${this.context.repo?.owner}/${this.context.repo?.repo}`);
-    core.info(`   SHA: ${this.context.sha}`);
-    core.info(`   Actor: ${this.context.actor}`);
+    core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'}`);
+    core.info(`   SHA: ${this.context.sha || 'unknown'}`);
+    core.info(`   Actor: ${this.context.actor || 'unknown'}`);
   }
 
   /**
@@ -48911,7 +48911,7 @@ class BranchDetector {
       };
     }
     
-    const targetBranch = this.context.ref.replace('refs/heads/', '');
+    const targetBranch = this.context.ref ? this.context.ref.replace('refs/heads/', '') : 'main';
     const sourceBranch = this.payload.before || 'unknown'; // Previous commit SHA
     const currentCommit = this.payload.after || this.context.sha || 'unknown'; // Current commit SHA
 
@@ -48965,7 +48965,7 @@ class BranchDetector {
    */
   detectManualBranches() {
     const targetBranch = this.payload.inputs?.target_branch || 'dev';
-    const currentCommit = this.context.sha;
+    const currentCommit = this.context.sha || 'unknown';
 
     return {
       sourceBranch: null,
@@ -49090,10 +49090,10 @@ class BranchDetector {
   getDetailedInfo(branchInfo) {
     return {
       ...branchInfo,
-      repository: this.context.repo,
-      workflow: this.context.workflow,
-      runId: this.context.runId,
-      actor: this.context.actor,
+      repository: this.context.repo || {},
+      workflow: this.context.workflow || 'unknown',
+      runId: this.context.runId || 'unknown',
+      actor: this.context.actor || 'unknown',
       timestamp: new Date().toISOString()
     };
   }
