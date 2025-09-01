@@ -31,12 +31,12 @@ class BranchDetector {
       this.context.actor = process.env.GITHUB_ACTOR || 'unknown';
     }
     
-    this.eventName = this.context.eventName;
-    this.payload = this.context.payload;
+    this.eventName = this.context.eventName || 'unknown';
+    this.payload = this.context.payload || {};
     
     // Log context initialization for debugging
     core.info(`🔧 BranchDetector initialized:`);
-    core.info(`   Event Name: ${this.eventName}`);
+    core.info(`   Event Name: ${this.eventName || 'unknown'}`);
     core.info(`   Repository: ${this.context.repo?.owner || 'unknown'}/${this.context.repo?.repo || 'unknown'}`);
     core.info(`   SHA: ${this.context.sha || 'unknown'}`);
     core.info(`   Actor: ${this.context.actor || 'unknown'}`);
