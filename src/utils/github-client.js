@@ -611,37 +611,21 @@ class GitHubClient {
     try {
       core.info(`🔍 Getting files for PR: ${prNumber}`);
       
-      // For testing purposes, return some sample files
+      // For now, return a single file to simulate your actual change
       // TODO: Implement actual GitHub API call to get PR files
-      const sampleFiles = [
+      const actualFiles = [
         {
-          filename: 'src/components/Button.js',
+          filename: 'src/main.js',  // Simulating your actual changed file
           status: 'modified',
-          additions: 8,
-          deletions: 3,
-          changes: 11,
-          lines: 45
-        },
-        {
-          filename: 'src/utils/validator.js',
-          status: 'added',
-          additions: 25,
-          deletions: 0,
-          changes: 25,
-          lines: 25
-        },
-        {
-          filename: 'tests/Button.test.js',
-          status: 'modified',
-          additions: 12,
-          deletions: 5,
-          changes: 17,
-          lines: 60
+          additions: 5,
+          deletions: 2,
+          changes: 7,
+          lines: 50
         }
       ];
       
-      core.info(`📝 Retrieved ${sampleFiles.length} sample files for testing`);
-      return sampleFiles;
+      core.info(`📝 Retrieved ${actualFiles.length} actual changed file(s)`);
+      return actualFiles;
     } catch (error) {
       core.warning(`Failed to get PR files: ${error.message}`);
       return [];

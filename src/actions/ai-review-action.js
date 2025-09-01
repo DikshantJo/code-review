@@ -1279,7 +1279,7 @@ ${reviewResult.issues.map(issue => `
       const startTime = Date.now();
       core.info('🤖 Calling OpenAI API for code review...');
       
-      const aiResponse = await this.openaiClient.reviewCode(reviewContent, config);
+      const aiResponse = await this.openaiClient.performCodeReview(reviewContent);
       core.info('📡 Received response from OpenAI API');
       
       // Log the actual AI response
