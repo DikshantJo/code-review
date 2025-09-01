@@ -50769,13 +50769,26 @@ const nodemailer = __nccwpck_require__(6002);
  * Handles service downtime notifications and other alerts
  */
 class EmailNotifier {
-  constructor(config) {
+  constructor(config = {}) {
     this.config = config;
     this.transporter = null;
-    this.isEnabled = config?.notifications?.email?.enabled || false;
+    
+    // Check if email notifications are enabled via config OR environment variables
+    this.isEnabled = config?.notifications?.email?.enabled || 
+                    (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+    
+    console.log(`📧 EmailNotifier initialization:`);
+    console.log(`   Config enabled: ${config?.notifications?.email?.enabled}`);
+    console.log(`   SMTP_HOST: ${process.env.SMTP_HOST ? '✅ Set' : '❌ Not set'}`);
+    console.log(`   SMTP_USER: ${process.env.SMTP_USER ? '✅ Set' : '❌ Not set'}`);
+    console.log(`   SMTP_PASS: ${process.env.SMTP_PASS ? '✅ Set' : '❌ Not set'}`);
+    console.log(`   Final isEnabled: ${this.isEnabled}`);
     
     if (this.isEnabled) {
       this.initializeTransporter();
+      console.log('✅ EmailNotifier transporter initialized successfully');
+    } else {
+      console.log('❌ EmailNotifier disabled - missing configuration');
     }
   }
 
@@ -50783,19 +50796,26 @@ class EmailNotifier {
    * Initialize SMTP transporter
    */
   initializeTransporter() {
-    const emailConfig = this.config.notifications.email;
+    // Use config first, then fall back to environment variables
+    const emailConfig = this.config.notifications?.email || {};
     
-    if (!emailConfig.smtp_host || !emailConfig.smtp_user || !emailConfig.smtp_pass) {
-      throw new Error('SMTP configuration incomplete. Required: smtp_host, smtp_user, smtp_pass');
+    const smtpHost = emailConfig.smtp_host || process.env.SMTP_HOST;
+    const smtpUser = emailConfig.smtp_user || process.env.SMTP_USER;
+    const smtpPass = emailConfig.smtp_pass || process.env.SMTP_PASS;
+    const smtpPort = emailConfig.smtp_port || process.env.SMTP_PORT || 587;
+    const smtpSecure = emailConfig.smtp_secure || (process.env.SMTP_SECURE === 'true');
+    
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      throw new Error('SMTP configuration incomplete. Required: smtp_host, smtp_user, smtp_pass (via config or environment variables)');
     }
 
     this.transporter = nodemailer.createTransporter({
-      host: emailConfig.smtp_host,
-      port: emailConfig.smtp_port || 587,
-      secure: emailConfig.smtp_secure || false,
+      host: smtpHost,
+      port: parseInt(smtpPort),
+      secure: smtpSecure,
       auth: {
-        user: emailConfig.smtp_user,
-        pass: emailConfig.smtp_pass
+        user: smtpUser,
+        pass: smtpPass
       }
     });
   }
