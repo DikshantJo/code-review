@@ -246,6 +246,163 @@ class AuditLogger {
   }
 
   /**
+   * Log review outcome with comprehensive details
+   * @param {Object} reviewData - Review outcome data
+   * @param {Object} context - Review context information
+   * @returns {Promise<Object>} Log entry information
+   */
+  async logReviewOutcome(reviewData, context = {}) {
+    try {
+      const eventData = {
+        review_status: reviewData.status || 'completed',
+        review_passed: reviewData.passed || false,
+        issues_found: reviewData.issues?.length || 0,
+        severity_distribution: this.getSeverityDistribution(reviewData.issues || []),
+        review_score: reviewData.score || 0,
+        quality_gates_passed: reviewData.qualityGatesPassed || false,
+        files_reviewed: reviewData.filesReviewed || 0,
+        lines_of_code: reviewData.linesOfCode || 0,
+        review_duration: reviewData.duration || 0,
+        ...reviewData
+      };
+
+      const logContext = {
+        ...context,
+        category: 'review_outcome',
+        session_id: context.sessionId || this.generateSessionId(),
+        user: context.user || 'ai_system',
+        repository: context.repository || 'unknown',
+        branch: context.branch || 'unknown',
+        commit_sha: context.commitSha || 'unknown',
+        pull_request: context.pullRequest || 'unknown'
+      };
+
+      return await this.logEvent('review_outcome', eventData, 'info', logContext);
+    } catch (error) {
+      console.error('Failed to log review outcome:', error);
+      return {
+        auditId: null,
+        logged: false,
+        reason: 'log_error',
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Log AI response metrics
+   * @param {Object} metricsData - AI response metrics data
+   * @param {Object} context - Review context information
+   * @returns {Promise<Object>} Log entry information
+   */
+  async logAIResponseMetrics(metricsData, context = {}) {
+    try {
+      const eventData = {
+        model_used: metricsData.model || 'unknown',
+        tokens_used: metricsData.tokens || 0,
+        response_time: metricsData.responseTime || 0,
+        api_version: metricsData.apiVersion || 'unknown',
+        temperature: metricsData.temperature || 0,
+        max_tokens: metricsData.maxTokens || 0,
+        retry_count: metricsData.retryCount || 0,
+        fallback_used: metricsData.fallbackUsed || false,
+        ...metricsData
+      };
+
+      const logContext = {
+        ...context,
+        category: 'ai_response_metrics',
+        session_id: context.sessionId || this.generateSessionId(),
+        user: context.user || 'ai_system',
+        repository: context.repository || 'unknown',
+        branch: context.branch || 'unknown',
+        commit_sha: context.commitSha || 'unknown'
+      };
+
+      return await this.logEvent('ai_response_metrics', eventData, 'info', logContext);
+    } catch (error) {
+      console.error('Failed to log AI response metrics:', error);
+      return {
+        auditId: null,
+        logged: false,
+        reason: 'log_error',
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Log warning message
+   * @param {string} eventType - Type of warning event
+   * @param {Object} data - Warning data
+   * @param {Object} context - Additional context information
+   * @returns {Promise<Object>} Log entry information
+   */
+  async logWarn(eventType, data = {}, context = {}) {
+    return await this.logEvent(eventType, data, 'warn', context);
+  }
+
+  /**
+   * Log error message
+   * @param {string} eventType - Type of error event
+   * @param {Object} data - Error data
+   * @param {Object} context - Additional context information
+   * @returns {Promise<Object>} Log entry information
+   */
+  async logError(eventType, data = {}, context = {}) {
+    return await this.logEvent(eventType, data, 'error', context);
+  }
+
+  /**
+   * Log info message
+   * @param {string} eventType - Type of info event
+   * @param {Object} data - Info data
+   * @param {Object} context - Additional context information
+   * @returns {Promise<Object>} Log entry information
+   */
+  async logInfo(eventType, data = {}, context = {}) {
+    return await this.logEvent(eventType, data, 'info', context);
+  }
+
+  /**
+   * Log AI response
+   * @param {Object} logData - AI response log data
+   * @returns {Promise<Object>} Log entry information
+   */
+  async logAIResponse(logData) {
+    try {
+      const eventData = {
+        ai_response_type: logData.type || 'code_review',
+        response_content: logData.content || '',
+        response_length: logData.content?.length || 0,
+        model_used: logData.model || 'unknown',
+        tokens_used: logData.tokens || 0,
+        response_time: logData.responseTime || 0,
+        ...logData
+      };
+
+      const logContext = {
+        category: 'ai_response',
+        session_id: logData.sessionId || this.generateSessionId(),
+        user: logData.user || 'ai_system',
+        repository: logData.repository || 'unknown',
+        branch: logData.branch || 'unknown',
+        commit_sha: logData.commitSha || 'unknown'
+      };
+
+      return await this.logEvent('ai_response', eventData, 'info', logContext);
+    } catch (error) {
+      console.error('Failed to log AI response:', error);
+      return {
+        auditId: null,
+        logged: false,
+        reason: 'log_error',
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Get severity distribution from issues
    * @param {Array} issues - Array of review issues
    * @returns {Object} Severity distribution

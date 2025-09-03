@@ -87,6 +87,16 @@ class LargeCommitHandler {
   }
 
   /**
+   * Alias method for analyzeCommitSize (compatibility)
+   * @param {Array} files - Array of file objects
+   * @param {Object} context - Additional context information
+   * @returns {Object} Analysis results
+   */
+  analyzeCommit(files, context = {}) {
+    return this.analyzeCommitSize(files, context);
+  }
+
+  /**
    * Split files into reviewable chunks
    * @param {Array} files - Array of file objects
    * @param {Object} analysis - Size analysis result
