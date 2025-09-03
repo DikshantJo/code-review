@@ -1,0 +1,257 @@
+# Example: Minimal Working Configuration
+# Use case: Basic setup to get started quickly
+# Best for: New users, simple projects, testing
+# Last updated: December 19, 2024
+
+# Basic configuration
+environment: 'production'
+log_level: 'info'
+
+# AI Review settings
+ai:
+  model: 'gpt-4'
+  max_tokens: 4000
+  temperature: 0.1
+  timeout_seconds: 60
+
+# File filtering - basic setup
+files:
+  include_patterns:
+    - '**/*.js'
+    - '**/*.ts'
+    - '**/*.py'
+    - '**/*.java'
+    - '**/*.cs'
+    - '**/*.go'
+    - '**/*.rs'
+    - '**/*.php'
+    - '**/*.rb'
+  
+  exclude_patterns:
+    - '**/node_modules/**'
+    - '**/dist/**'
+    - '**/build/**'
+    - '**/*.min.js'
+    - '**/*.bundle.js'
+    - '**/.git/**'
+    - '**/vendor/**'
+  
+  max_file_size_mb: 1
+  max_files_per_review: 100
+
+# Review settings - basic quality gates
+review:
+  quality_gates:
+    min_score: 0.7
+    max_issues: 10
+    block_on_critical: true
+  
+  auto_fix:
+    enabled: false
+    max_changes: 5
+    require_approval: true
+
+# Email notifications - basic setup
+notifications:
+  email:
+    enabled: true
+    
+    # SMTP Configuration (use environment variables)
+    smtp_host: ${SMTP_HOST:-smtp.gmail.com}
+    smtp_port: ${SMTP_PORT:-587}
+    smtp_secure: ${SMTP_SECURE:-false}
+    smtp_user: ${SMTP_USER}
+    smtp_pass: ${SMTP_PASS}
+    
+    # Email addresses
+    from_email: ${EMAIL_FROM:-ai-review@github.com}
+    to_emails: ${EMAIL_TO:-[]}
+    
+    # Basic notification triggers
+    triggers:
+      service_downtime: true
+      review_failure: true
+      quality_gate_failure: true
+      security_issues: true
+    
+    # Basic email templates
+    templates:
+      subjects:
+        review_failure: "[AI Review] Review Failed - ${repository}"
+        quality_gate: "[AI Review] Quality Gate Failed - ${repository}"
+        security: "[AI Review] Security Issue Detected - ${repository}"
+      
+      bodies:
+        review_failure: |
+          <h2>❌ AI Code Review Failed</h2>
+          <p>A code review has failed for the following changes:</p>
+          <p><strong>Repository:</strong> ${repository}</p>
+          <p><strong>Branch:</strong> ${branch}</p>
+          <p><strong>Commit:</strong> ${commit}</p>
+          <p><strong>Issues Found:</strong> ${issues_count}</p>
+          
+          <p><strong>Review Score:</strong> ${review_score}</p>
+          <p><strong>Next Steps:</strong> Please review and fix the identified issues.</p>
+    
+    # Basic rate limiting
+    rate_limiting:
+      max_per_hour: 10
+      max_per_day: 50
+      cooldown_minutes: 30
+
+# Issue creation - basic setup
+issue_creation:
+  enabled: false  # Disabled by default in minimal config
+  
+  # When to create issues (if enabled)
+  triggers:
+    review_failure: true
+    review_passed: false
+    severity_threshold: 'high'  # Only high and critical issues
+  
+  # Basic issue creation behavior
+  behavior:
+    strategy: 'per_file'
+    max_issues_per_review: 20
+    min_severity: 'high'
+    group_similar: false
+    deduplicate: true
+
+# GitHub integration - basic setup
+github:
+  # Issue creation (if enabled)
+  create_issues: false
+  update_issues: false
+  add_comments: false
+  add_labels: false
+  
+  # Basic repository settings
+  repository: ${GITHUB_REPOSITORY}
+  token: ${GITHUB_TOKEN}
+
+# Logging - basic setup
+logging:
+  level: 'info'
+  file_logging:
+    enabled: true
+    file_path: './logs/ai-review.log'
+    max_size: '10MB'
+    max_files: 5
+  
+  # Basic logging settings
+  log_creation: true
+  log_errors: true
+  structured: false
+
+# Performance - basic settings
+performance:
+  # Basic rate limiting
+  rate_limiting:
+    enabled: true
+    max_requests_per_minute: 10
+    cooldown_minutes: 5
+  
+  # Basic caching
+  caching:
+    enabled: true
+    cache_duration_minutes: 30
+    max_cache_size: 500
+
+# Environment-specific overrides
+environments:
+  development:
+    log_level: 'debug'
+    notifications:
+      email:
+        enabled: false
+    issue_creation:
+      enabled: false
+    performance:
+      rate_limiting:
+        max_requests_per_minute: 5
+  
+  staging:
+    log_level: 'info'
+    notifications:
+      email:
+        enabled: true
+    issue_creation:
+      enabled: false
+    performance:
+      rate_limiting:
+        max_requests_per_minute: 8
+  
+  production:
+    log_level: 'warn'
+    notifications:
+      email:
+        enabled: true
+    issue_creation:
+      enabled: false
+    performance:
+      rate_limiting:
+        max_requests_per_minute: 10
+
+# Validation rules - basic
+validation:
+  required_fields:
+    - environment
+    - ai.model
+    - notifications.email.smtp_host
+    - notifications.email.smtp_user
+    - notifications.email.smtp_pass
+  
+  # Basic validation rules
+  max_values:
+    max_files_per_review: 200
+    max_file_size_mb: 5
+  
+  min_values:
+    max_files_per_review: 1
+    max_file_size_mb: 0.1
+
+# Configuration metadata
+metadata:
+  example_name: 'Minimal Working Configuration'
+  use_case: 'Basic setup to get started quickly'
+  target_audience: 'New users, simple projects, testing'
+  complexity: 'Simple'
+  estimated_setup_time: '5-10 minutes'
+  version: '1.0.0'
+  last_updated: '2024-12-19'
+  author: 'AI Code Review System'
+  description: 'Minimal configuration for basic AI code review functionality'
+  
+  # Required environment variables
+  required_env_vars:
+    - 'EMAIL_TO - Email addresses to send notifications to'
+    - 'SMTP_HOST - SMTP server hostname'
+    - 'SMTP_USER - SMTP username'
+    - 'SMTP_PASS - SMTP password'
+    - 'GITHUB_TOKEN - GitHub API token'
+    - 'OPENAI_API_KEY - OpenAI API key'
+  
+  # Optional environment variables
+  optional_env_vars:
+    - 'EMAIL_FROM - From email address (defaults to ai-review@github.com)'
+    - 'SMTP_PORT - SMTP port (defaults to 587)'
+    - 'SMTP_SECURE - Use TLS (defaults to false)'
+    - 'GITHUB_REPOSITORY - GitHub repository (owner/repo)'
+    - 'AI_MODEL - AI model to use (defaults to gpt-4)'
+  
+  # Quick start commands
+  quick_start:
+    - 'Copy this file to ai-review-config.yml'
+    - 'Set required environment variables'
+    - 'Run: npm run validate-config'
+    - 'Run: npm run test-email'
+    - 'Run: npm run start'
+  
+  # Next steps
+  next_steps:
+    - 'Enable issue creation if needed'
+    - 'Customize email templates'
+    - 'Add custom file patterns'
+    - 'Configure quality gates'
+    - 'Set up team assignments'
+

@@ -1,0 +1,732 @@
+{
+  "metadata": {
+    "generatedAt": "2025-08-30T11:26:54.254Z",
+    "totalDuration": 110463,
+    "iterations": 1,
+    "concurrency": 5,
+    "options": {
+      "output": "performance-test-report.json",
+      "verbose": false,
+      "timeout": 300000,
+      "concurrency": 5,
+      "iterations": 1,
+      "quick": true
+    }
+  },
+  "summary": {
+    "totalTests": 23,
+    "passed": 23,
+    "warnings": 0,
+    "failed": 0,
+    "successRate": 100
+  },
+  "aggregatedMetrics": {
+    "OpenAI Response Time": {
+      "count": 3,
+      "passed": 3,
+      "warnings": 0,
+      "failed": 0,
+      "successRate": 100,
+      "responseTime": {
+        "min": 1504,
+        "max": 8507,
+        "avg": 4505.666666666667,
+        "p95": 8507,
+        "p99": 8507
+      },
+      "recoveryTime": null,
+      "totalTime": null
+    },
+    "GitHub API Performance": {
+      "count": 4,
+      "passed": 4,
+      "warnings": 0,
+      "failed": 0,
+      "successRate": 100,
+      "responseTime": {
+        "min": 305,
+        "max": 1007,
+        "avg": 555,
+        "p95": 1007,
+        "p99": 1007
+      },
+      "recoveryTime": null,
+      "totalTime": null
+    },
+    "Workflow Throughput": {
+      "count": 3,
+      "passed": 3,
+      "warnings": 0,
+      "failed": 0,
+      "successRate": 100,
+      "responseTime": null,
+      "recoveryTime": null,
+      "totalTime": {
+        "min": 3520,
+        "max": 35196,
+        "avg": 18771.333333333332
+      }
+    },
+    "Concurrent Reviews": {
+      "count": 4,
+      "passed": 4,
+      "warnings": 0,
+      "failed": 0,
+      "successRate": 100,
+      "responseTime": null,
+      "recoveryTime": null,
+      "totalTime": {
+        "min": 3513,
+        "max": 3536,
+        "avg": 3523.5
+      }
+    },
+    "Large File Handling": {
+      "count": 4,
+      "passed": 4,
+      "warnings": 0,
+      "failed": 0,
+      "successRate": 100,
+      "responseTime": null,
+      "recoveryTime": null,
+      "totalTime": {
+        "min": 15,
+        "max": 7512,
+        "avg": 2299.25
+      }
+    },
+    "Memory Usage": {
+      "count": 1,
+      "passed": 1,
+      "warnings": 0,
+      "failed": 0,
+      "successRate": 100,
+      "responseTime": null,
+      "recoveryTime": null,
+      "totalTime": null
+    },
+    "Error Recovery Performance": {
+      "count": 4,
+      "passed": 4,
+      "warnings": 0,
+      "failed": 0,
+      "successRate": 100,
+      "responseTime": null,
+      "recoveryTime": {
+        "min": 1007,
+        "max": 8000,
+        "avg": 3503
+      },
+      "totalTime": null
+    }
+  },
+  "performanceTrends": {
+    "OpenAI Response Time": {
+      "trend": "increasing",
+      "changePercent": 239.6007984031936,
+      "dataPoints": 3
+    },
+    "GitHub API Performance": {
+      "trend": "decreasing",
+      "changePercent": -53.27164573694646,
+      "dataPoints": 4
+    }
+  },
+  "recommendations": [
+    "Performance is within acceptable thresholds"
+  ],
+  "iterationResults": [
+    {
+      "iteration": 1,
+      "duration": 110462,
+      "results": [
+        {
+          "test": "OpenAI Response Time",
+          "scenario": "Small Code Review",
+          "responseTime": 1504,
+          "expectedTime": 5000,
+          "status": "passed",
+          "tokens": 1000,
+          "timestamp": "2025-08-30T11:25:05.295Z"
+        },
+        {
+          "test": "OpenAI Response Time",
+          "scenario": "Medium Code Review",
+          "responseTime": 3506,
+          "expectedTime": 15000,
+          "status": "passed",
+          "tokens": 5000,
+          "timestamp": "2025-08-30T11:25:08.802Z"
+        },
+        {
+          "test": "OpenAI Response Time",
+          "scenario": "Large Code Review",
+          "responseTime": 8507,
+          "expectedTime": 30000,
+          "status": "passed",
+          "tokens": 15000,
+          "timestamp": "2025-08-30T11:25:17.309Z"
+        },
+        {
+          "test": "GitHub API Performance",
+          "operation": "Get Pull Request Files",
+          "responseTime": 506,
+          "expectedTime": 2000,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:25:17.816Z"
+        },
+        {
+          "test": "GitHub API Performance",
+          "operation": "Create Issue",
+          "responseTime": 1007,
+          "expectedTime": 2000,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:25:18.823Z"
+        },
+        {
+          "test": "GitHub API Performance",
+          "operation": "Get Commit Details",
+          "responseTime": 305,
+          "expectedTime": 2000,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:25:19.128Z"
+        },
+        {
+          "test": "GitHub API Performance",
+          "operation": "Update Status Check",
+          "responseTime": 402,
+          "expectedTime": 2000,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:25:19.531Z"
+        },
+        {
+          "test": "Workflow Throughput",
+          "scenario": "Single Review",
+          "totalTime": 3520,
+          "averageTime": 3520,
+          "reviewsCompleted": 1,
+          "expectedTime": 60000,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:25:23.052Z"
+        },
+        {
+          "test": "Workflow Throughput",
+          "scenario": "Batch Review (5)",
+          "totalTime": 17598,
+          "averageTime": 3519.6,
+          "reviewsCompleted": 5,
+          "expectedTime": 180000,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:25:40.650Z"
+        },
+        {
+          "test": "Workflow Throughput",
+          "scenario": "High Volume (10)",
+          "totalTime": 35196,
+          "averageTime": 3519.6,
+          "reviewsCompleted": 10,
+          "expectedTime": 300000,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:15.847Z"
+        },
+        {
+          "test": "Concurrent Reviews",
+          "concurrency": 1,
+          "totalTime": 3522,
+          "successful": 1,
+          "failed": 0,
+          "successRate": 100,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:19.370Z"
+        },
+        {
+          "test": "Concurrent Reviews",
+          "concurrency": 3,
+          "totalTime": 3513,
+          "successful": 3,
+          "failed": 0,
+          "successRate": 100,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:22.883Z"
+        },
+        {
+          "test": "Concurrent Reviews",
+          "concurrency": 5,
+          "totalTime": 3523,
+          "successful": 5,
+          "failed": 0,
+          "successRate": 100,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:26.406Z"
+        },
+        {
+          "test": "Concurrent Reviews",
+          "concurrency": 10,
+          "totalTime": 3536,
+          "successful": 10,
+          "failed": 0,
+          "successRate": 100,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:29.942Z"
+        },
+        {
+          "test": "Large File Handling",
+          "fileSize": "Small File (1KB)",
+          "processingTime": 15,
+          "totalTime": 15,
+          "fileSizeBytes": 1024,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:29.958Z"
+        },
+        {
+          "test": "Large File Handling",
+          "fileSize": "Medium File (100KB)",
+          "processingTime": 155,
+          "totalTime": 155,
+          "fileSizeBytes": 102400,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:30.113Z"
+        },
+        {
+          "test": "Large File Handling",
+          "fileSize": "Large File (1MB)",
+          "processingTime": 1514,
+          "totalTime": 1515,
+          "fileSizeBytes": 1048576,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:31.628Z"
+        },
+        {
+          "test": "Large File Handling",
+          "fileSize": "Very Large File (5MB)",
+          "processingTime": 7511,
+          "totalTime": 7512,
+          "fileSizeBytes": 5242880,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:39.140Z"
+        },
+        {
+          "test": "Memory Usage",
+          "initialMemory": {
+            "heapUsed": 9735672,
+            "heapTotal": 11595776,
+            "external": 1754755,
+            "rss": 44216320
+          },
+          "finalMemory": {
+            "heapUsed": 10780024,
+            "heapTotal": 14741504,
+            "external": 1754795,
+            "rss": 46665728
+          },
+          "memoryGrowth": {
+            "heapUsed": 1044352,
+            "heapTotal": 3145728,
+            "external": 40,
+            "rss": 2449408
+          },
+          "snapshots": [
+            {
+              "iteration": 0,
+              "heapUsed": 9739056,
+              "heapTotal": 11595776,
+              "external": 1754795,
+              "rss": 44216320
+            },
+            {
+              "iteration": 1,
+              "heapUsed": 10295568,
+              "heapTotal": 11595776,
+              "external": 1754795,
+              "rss": 44765184
+            },
+            {
+              "iteration": 2,
+              "heapUsed": 10218400,
+              "heapTotal": 11595776,
+              "external": 1754795,
+              "rss": 45740032
+            },
+            {
+              "iteration": 3,
+              "heapUsed": 10209912,
+              "heapTotal": 12644352,
+              "external": 1754795,
+              "rss": 46280704
+            },
+            {
+              "iteration": 4,
+              "heapUsed": 10206848,
+              "heapTotal": 11595776,
+              "external": 1754795,
+              "rss": 46284800
+            },
+            {
+              "iteration": 5,
+              "heapUsed": 10206976,
+              "heapTotal": 11595776,
+              "external": 1754795,
+              "rss": 46284800
+            },
+            {
+              "iteration": 6,
+              "heapUsed": 10207304,
+              "heapTotal": 12644352,
+              "external": 1754795,
+              "rss": 46284800
+            },
+            {
+              "iteration": 7,
+              "heapUsed": 10207432,
+              "heapTotal": 11595776,
+              "external": 1754795,
+              "rss": 46284800
+            },
+            {
+              "iteration": 8,
+              "heapUsed": 10199080,
+              "heapTotal": 12644352,
+              "external": 1754795,
+              "rss": 46419968
+            },
+            {
+              "iteration": 9,
+              "heapUsed": 10245040,
+              "heapTotal": 14741504,
+              "external": 1754795,
+              "rss": 46665728
+            }
+          ],
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:40.234Z"
+        },
+        {
+          "test": "Error Recovery Performance",
+          "scenario": "Network Timeout",
+          "recoveryTime": 3004,
+          "expectedTime": 5000,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:43.239Z"
+        },
+        {
+          "test": "Error Recovery Performance",
+          "scenario": "Rate Limit Exceeded",
+          "recoveryTime": 8000,
+          "expectedTime": 10000,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:51.239Z"
+        },
+        {
+          "test": "Error Recovery Performance",
+          "scenario": "API Error",
+          "recoveryTime": 2001,
+          "expectedTime": 3000,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:53.241Z"
+        },
+        {
+          "test": "Error Recovery Performance",
+          "scenario": "Invalid Response",
+          "recoveryTime": 1007,
+          "expectedTime": 2000,
+          "status": "passed",
+          "timestamp": "2025-08-30T11:26:54.249Z"
+        }
+      ]
+    }
+  ],
+  "detailedResults": [
+    {
+      "test": "OpenAI Response Time",
+      "scenario": "Small Code Review",
+      "responseTime": 1504,
+      "expectedTime": 5000,
+      "status": "passed",
+      "tokens": 1000,
+      "timestamp": "2025-08-30T11:25:05.295Z"
+    },
+    {
+      "test": "OpenAI Response Time",
+      "scenario": "Medium Code Review",
+      "responseTime": 3506,
+      "expectedTime": 15000,
+      "status": "passed",
+      "tokens": 5000,
+      "timestamp": "2025-08-30T11:25:08.802Z"
+    },
+    {
+      "test": "OpenAI Response Time",
+      "scenario": "Large Code Review",
+      "responseTime": 8507,
+      "expectedTime": 30000,
+      "status": "passed",
+      "tokens": 15000,
+      "timestamp": "2025-08-30T11:25:17.309Z"
+    },
+    {
+      "test": "GitHub API Performance",
+      "operation": "Get Pull Request Files",
+      "responseTime": 506,
+      "expectedTime": 2000,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:25:17.816Z"
+    },
+    {
+      "test": "GitHub API Performance",
+      "operation": "Create Issue",
+      "responseTime": 1007,
+      "expectedTime": 2000,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:25:18.823Z"
+    },
+    {
+      "test": "GitHub API Performance",
+      "operation": "Get Commit Details",
+      "responseTime": 305,
+      "expectedTime": 2000,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:25:19.128Z"
+    },
+    {
+      "test": "GitHub API Performance",
+      "operation": "Update Status Check",
+      "responseTime": 402,
+      "expectedTime": 2000,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:25:19.531Z"
+    },
+    {
+      "test": "Workflow Throughput",
+      "scenario": "Single Review",
+      "totalTime": 3520,
+      "averageTime": 3520,
+      "reviewsCompleted": 1,
+      "expectedTime": 60000,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:25:23.052Z"
+    },
+    {
+      "test": "Workflow Throughput",
+      "scenario": "Batch Review (5)",
+      "totalTime": 17598,
+      "averageTime": 3519.6,
+      "reviewsCompleted": 5,
+      "expectedTime": 180000,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:25:40.650Z"
+    },
+    {
+      "test": "Workflow Throughput",
+      "scenario": "High Volume (10)",
+      "totalTime": 35196,
+      "averageTime": 3519.6,
+      "reviewsCompleted": 10,
+      "expectedTime": 300000,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:15.847Z"
+    },
+    {
+      "test": "Concurrent Reviews",
+      "concurrency": 1,
+      "totalTime": 3522,
+      "successful": 1,
+      "failed": 0,
+      "successRate": 100,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:19.370Z"
+    },
+    {
+      "test": "Concurrent Reviews",
+      "concurrency": 3,
+      "totalTime": 3513,
+      "successful": 3,
+      "failed": 0,
+      "successRate": 100,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:22.883Z"
+    },
+    {
+      "test": "Concurrent Reviews",
+      "concurrency": 5,
+      "totalTime": 3523,
+      "successful": 5,
+      "failed": 0,
+      "successRate": 100,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:26.406Z"
+    },
+    {
+      "test": "Concurrent Reviews",
+      "concurrency": 10,
+      "totalTime": 3536,
+      "successful": 10,
+      "failed": 0,
+      "successRate": 100,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:29.942Z"
+    },
+    {
+      "test": "Large File Handling",
+      "fileSize": "Small File (1KB)",
+      "processingTime": 15,
+      "totalTime": 15,
+      "fileSizeBytes": 1024,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:29.958Z"
+    },
+    {
+      "test": "Large File Handling",
+      "fileSize": "Medium File (100KB)",
+      "processingTime": 155,
+      "totalTime": 155,
+      "fileSizeBytes": 102400,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:30.113Z"
+    },
+    {
+      "test": "Large File Handling",
+      "fileSize": "Large File (1MB)",
+      "processingTime": 1514,
+      "totalTime": 1515,
+      "fileSizeBytes": 1048576,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:31.628Z"
+    },
+    {
+      "test": "Large File Handling",
+      "fileSize": "Very Large File (5MB)",
+      "processingTime": 7511,
+      "totalTime": 7512,
+      "fileSizeBytes": 5242880,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:39.140Z"
+    },
+    {
+      "test": "Memory Usage",
+      "initialMemory": {
+        "heapUsed": 9735672,
+        "heapTotal": 11595776,
+        "external": 1754755,
+        "rss": 44216320
+      },
+      "finalMemory": {
+        "heapUsed": 10780024,
+        "heapTotal": 14741504,
+        "external": 1754795,
+        "rss": 46665728
+      },
+      "memoryGrowth": {
+        "heapUsed": 1044352,
+        "heapTotal": 3145728,
+        "external": 40,
+        "rss": 2449408
+      },
+      "snapshots": [
+        {
+          "iteration": 0,
+          "heapUsed": 9739056,
+          "heapTotal": 11595776,
+          "external": 1754795,
+          "rss": 44216320
+        },
+        {
+          "iteration": 1,
+          "heapUsed": 10295568,
+          "heapTotal": 11595776,
+          "external": 1754795,
+          "rss": 44765184
+        },
+        {
+          "iteration": 2,
+          "heapUsed": 10218400,
+          "heapTotal": 11595776,
+          "external": 1754795,
+          "rss": 45740032
+        },
+        {
+          "iteration": 3,
+          "heapUsed": 10209912,
+          "heapTotal": 12644352,
+          "external": 1754795,
+          "rss": 46280704
+        },
+        {
+          "iteration": 4,
+          "heapUsed": 10206848,
+          "heapTotal": 11595776,
+          "external": 1754795,
+          "rss": 46284800
+        },
+        {
+          "iteration": 5,
+          "heapUsed": 10206976,
+          "heapTotal": 11595776,
+          "external": 1754795,
+          "rss": 46284800
+        },
+        {
+          "iteration": 6,
+          "heapUsed": 10207304,
+          "heapTotal": 12644352,
+          "external": 1754795,
+          "rss": 46284800
+        },
+        {
+          "iteration": 7,
+          "heapUsed": 10207432,
+          "heapTotal": 11595776,
+          "external": 1754795,
+          "rss": 46284800
+        },
+        {
+          "iteration": 8,
+          "heapUsed": 10199080,
+          "heapTotal": 12644352,
+          "external": 1754795,
+          "rss": 46419968
+        },
+        {
+          "iteration": 9,
+          "heapUsed": 10245040,
+          "heapTotal": 14741504,
+          "external": 1754795,
+          "rss": 46665728
+        }
+      ],
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:40.234Z"
+    },
+    {
+      "test": "Error Recovery Performance",
+      "scenario": "Network Timeout",
+      "recoveryTime": 3004,
+      "expectedTime": 5000,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:43.239Z"
+    },
+    {
+      "test": "Error Recovery Performance",
+      "scenario": "Rate Limit Exceeded",
+      "recoveryTime": 8000,
+      "expectedTime": 10000,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:51.239Z"
+    },
+    {
+      "test": "Error Recovery Performance",
+      "scenario": "API Error",
+      "recoveryTime": 2001,
+      "expectedTime": 3000,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:53.241Z"
+    },
+    {
+      "test": "Error Recovery Performance",
+      "scenario": "Invalid Response",
+      "recoveryTime": 1007,
+      "expectedTime": 2000,
+      "status": "passed",
+      "timestamp": "2025-08-30T11:26:54.249Z"
+    }
+  ]
+}

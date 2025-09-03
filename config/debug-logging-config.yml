@@ -1,0 +1,190 @@
+# 🔧 Debug Logging Configuration
+# This file configures debug logging for the AI Code Review system
+# Copy this file to your project root and customize as needed
+
+# Debug logging settings
+logging:
+  # Log level hierarchy: error < warn < info < debug < trace
+  log_level: 'debug'  # Set to 'debug' or 'trace' for verbose logging
+  
+  # Debug mode enables debug and trace level logging
+  debug_mode: true
+  
+  # Verbose logging provides additional context and details
+  verbose_logging: true
+  
+  # Debug categories - specify which categories to log
+  # Use 'all' to log all categories, or specify specific ones
+  debug_categories:
+    - 'all'  # Log all categories
+    # - 'ai-review'      # AI review process
+    # - 'file-detection' # File detection and filtering
+    # - 'github-api'     # GitHub API interactions
+    # - 'email'          # Email notifications
+    # - 'issue-creation' # Issue creation process
+    # - 'performance'    # Performance metrics
+    # - 'validation'     # Data validation
+  
+  # Debug filters - control what gets logged
+  debug_filters:
+    # Include only specific patterns
+    # - type: 'include'
+    #   pattern: 'ai-review|file-detection'
+    
+    # Exclude specific patterns
+    # - type: 'exclude'
+    #   pattern: 'sensitive|internal'
+  
+  # Console logging
+  enable_console_logging: true
+  
+  # File logging
+  enable_file_logging: true
+  
+  # Audit log directory
+  audit_log_dir: './logs/debug'
+  
+  # Maximum audit log files
+  max_audit_log_files: 100
+  
+  # Maximum audit log size (bytes)
+  max_audit_log_size: 100MB
+  
+  # Audit retention days
+  audit_retention_days: 30
+  
+  # Include sensitive data in logs (use with caution)
+  include_sensitive_data: false
+  
+  # Compliance mode for regulatory requirements
+  compliance_mode: false
+
+# Environment-specific debug configurations
+environments:
+  development:
+    logging:
+      log_level: 'trace'           # Most verbose for development
+      debug_mode: true
+      verbose_logging: true
+      debug_categories: ['all']    # Log everything in development
+      enable_console_logging: true
+      enable_file_logging: true
+      audit_log_dir: './logs/dev/debug'
+      max_audit_log_files: 200     # More files for development
+      audit_retention_days: 7      # Shorter retention for development
+  
+  staging:
+    logging:
+      log_level: 'debug'           # Debug level for staging
+      debug_mode: true
+      verbose_logging: true
+      debug_categories:
+        - 'ai-review'
+        - 'file-detection'
+        - 'github-api'
+        - 'issue-creation'
+      enable_console_logging: true
+      enable_file_logging: true
+      audit_log_dir: './logs/staging/debug'
+      max_audit_log_files: 50
+      audit_retention_days: 14
+  
+  production:
+    logging:
+      log_level: 'info'            # Info level for production
+      debug_mode: false            # Disable debug in production
+      verbose_logging: false       # Disable verbose in production
+      debug_categories: []         # No debug categories in production
+      enable_console_logging: false # Disable console in production
+      enable_file_logging: true
+      audit_log_dir: './logs/prod/audit'
+      max_audit_log_files: 20
+      audit_retention_days: 90
+
+# Debug logging examples
+examples:
+  # Enable debug for specific components only
+  component_specific:
+    logging:
+      debug_mode: true
+      debug_categories:
+        - 'ai-review'
+        - 'file-detection'
+      debug_filters:
+        - type: 'exclude'
+          pattern: 'github-api|email'
+  
+  # Performance debugging
+  performance_debug:
+    logging:
+      debug_mode: true
+      debug_categories:
+        - 'performance'
+        - 'ai-review'
+      verbose_logging: true
+  
+  # Security-focused debugging
+  security_debug:
+    logging:
+      debug_mode: true
+      debug_categories:
+        - 'validation'
+        - 'ai-review'
+      debug_filters:
+        - type: 'exclude'
+          pattern: 'sensitive|internal|credential'
+      include_sensitive_data: false
+
+# Validation rules
+validation:
+  required_fields:
+    - logging.log_level
+    - logging.debug_mode
+  
+  log_level_values:
+    - 'error'
+    - 'warn'
+    - 'info'
+    - 'debug'
+    - 'trace'
+  
+  debug_mode_values:
+    - true
+    - false
+  
+  debug_categories_max: 50
+  debug_filters_max: 20
+
+# Usage instructions
+usage:
+  # Enable debug mode programmatically
+  programmatic:
+    |
+    const logger = new AuditLogger(config);
+    
+    // Enable debug mode
+    logger.enableDebugMode(['ai-review', 'file-detection']);
+    
+    // Configure debug logging
+    logger.configureDebugLogging({
+      debug_mode: true,
+      verbose_logging: true,
+      debug_categories: ['ai-review', 'file-detection']
+    });
+    
+    // Use debug logging
+    await logger.debug('ai_review_started', { model: 'gpt-4' }, { category: 'ai-review' });
+    await logger.trace('file_processing', { filename: 'src/main.js' }, { category: 'file-detection' });
+  
+  # Environment variable override
+  environment:
+    |
+    # Set debug level via environment variable
+    export LOG_LEVEL="debug"
+    export DEBUG_MODE="true"
+    export DEBUG_CATEGORIES="ai-review,file-detection"
+    
+    # Run with debug logging
+    npm run start
+
+

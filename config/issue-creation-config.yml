@@ -1,0 +1,722 @@
+# 🚨 AI Code Review Issue Creation Configuration
+# This file configures how GitHub issues are created and managed
+
+# Issue Creation Settings
+issue_creation:
+  # Enable/disable automatic issue creation
+  enabled: true
+  
+  # When to create issues
+  triggers:
+    # Create issues for failed reviews
+    review_failure: true
+    
+    # Create issues for passed reviews (optional)
+    review_passed: false
+    
+    # Create issues for specific severity levels
+    severity_threshold: 'medium' # critical, high, medium, low, info
+    
+    # Create issues for specific issue types
+    type_filters:
+      - security
+      - performance
+      - bug
+      - quality
+      - architecture
+      # - style        # Comment out to exclude
+      # - documentation # Comment out to exclude
+      # - testing      # Comment out to exclude
+  
+  # Issue creation behavior
+  behavior:
+    # Create one issue per file or one issue per review
+    strategy: 'per_file' # per_file, per_review, consolidated
+    
+    # Maximum issues to create per review
+    max_issues_per_review: 50
+    
+    # Minimum severity to create issues for
+    min_severity: 'low'
+    
+    # Group similar issues
+    group_similar: true
+    
+    # Deduplicate issues
+    deduplicate: true
+    
+    # Auto-close resolved issues
+    auto_close_resolved: false
+
+# Issue Templates Configuration
+templates:
+  # Default template to use if specific template not found
+  default: 'quality'
+  
+  # Template overrides for specific issue types
+  overrides:
+    security:
+      template: 'security'
+      priority: 'high'
+      auto_assign: true
+    
+    performance:
+      template: 'performance'
+      priority: 'medium'
+      auto_assign: false
+    
+    bug:
+      template: 'bug'
+      priority: 'high'
+      auto_assign: true
+    
+    architecture:
+      template: 'architecture'
+      priority: 'medium'
+      auto_assign: false
+  
+  # Custom template variables
+  variables:
+    ai_model: 'GPT-4'
+    review_system: 'AI Code Review'
+    default_assignee: 'dev-team'
+    default_labels: ['ai-review', 'needs-triage']
+
+# Severity Management
+severity:
+  # Enable auto-escalation
+  auto_escalation:
+    enabled: true
+    
+    # Escalation thresholds
+    thresholds:
+      repeated_issues: 2      # Escalate after N repeated issues
+      critical_patterns: 1    # Escalate for critical patterns
+      multiple_files: 5       # Escalate if affects N+ files
+    
+    # Escalation rules
+    rules:
+      security_in_critical_file: 'critical'
+      repeated_bug_pattern: 'high'
+      performance_in_critical_path: 'high'
+  
+  # Severity scoring weights
+  scoring:
+    type_impact: 0.35
+    complexity_impact: 0.25
+    historical_patterns: 0.20
+    scope_impact: 0.15
+    security_implications: 0.05
+  
+  # Severity levels and actions
+  levels:
+    critical:
+      auto_create: true
+      block_deployment: true
+      notify_stakeholders: true
+      require_immediate_action: true
+    
+    high:
+      auto_create: true
+      block_deployment: false
+      notify_stakeholders: false
+      require_immediate_action: false
+    
+    medium:
+      auto_create: true
+      block_deployment: false
+      notify_stakeholders: false
+      require_immediate_action: false
+    
+    low:
+      auto_create: false
+      block_deployment: false
+      notify_stakeholders: false
+      require_immediate_action: false
+    
+    info:
+      auto_create: false
+      block_deployment: false
+      notify_stakeholders: false
+      require_immediate_action: false
+
+# Issue Assignment Configuration
+assignment:
+  # Enable automatic assignment
+  enabled: true
+  
+  # Assignment strategy
+  strategy:
+    primary: 'expertise'      # expertise, workload, round_robin, random
+    fallback: 'workload'
+    tiebreaker: 'seniority'
+  
+  # Team configuration
+  teams:
+    security_team:
+      name: 'Security Team'
+      expertise: ['security', 'authentication', 'authorization', 'encryption']
+      capacity: 10
+      members:
+        - username: 'security-lead'
+          expertise: ['security', 'authentication']
+          seniority: 'senior'
+          capacity: 8
+        
+        - username: 'security-dev'
+          expertise: ['security', 'encryption']
+          seniority: 'mid'
+          capacity: 6
+    
+    performance_team:
+      name: 'Performance Team'
+      expertise: ['performance', 'optimization', 'scalability', 'monitoring']
+      capacity: 8
+      members:
+        - username: 'perf-lead'
+          expertise: ['performance', 'optimization']
+          seniority: 'senior'
+          capacity: 8
+        
+        - username: 'perf-dev'
+          expertise: ['performance', 'monitoring']
+          seniority: 'mid'
+          capacity: 6
+    
+    qa_team:
+      name: 'QA Team'
+      expertise: ['testing', 'bug', 'quality-assurance', 'regression']
+      capacity: 12
+      members:
+        - username: 'qa-lead'
+          expertise: ['testing', 'quality']
+          seniority: 'senior'
+          capacity: 8
+        
+        - username: 'qa-dev'
+          expertise: ['testing', 'automation']
+          seniority: 'mid'
+          capacity: 6
+    
+    arch_team:
+      name: 'Architecture Team'
+      expertise: ['architecture', 'design-patterns', 'system-design', 'scalability']
+      capacity: 6
+      members:
+        - username: 'arch-lead'
+          expertise: ['architecture', 'design']
+          seniority: 'senior'
+          capacity: 8
+        
+        - username: 'arch-dev'
+          expertise: ['architecture', 'patterns']
+          seniority: 'mid'
+          capacity: 6
+    
+    dev_team:
+      name: 'Development Team'
+      expertise: ['general', 'code-quality', 'refactoring', 'maintenance']
+      capacity: 20
+      members:
+        - username: 'senior-dev-1'
+          expertise: ['general', 'mentoring']
+          seniority: 'senior'
+          capacity: 8
+        
+        - username: 'mid-dev-1'
+          expertise: ['general', 'implementation']
+          seniority: 'mid'
+          capacity: 6
+        
+        - username: 'junior-dev-1'
+          expertise: ['general', 'learning']
+          seniority: 'junior'
+          capacity: 4
+    
+    docs_team:
+      name: 'Documentation Team'
+      expertise: ['documentation', 'api-docs', 'user-guides', 'technical-writing']
+      capacity: 5
+      members:
+        - username: 'docs-lead'
+          expertise: ['documentation', 'technical-writing']
+          seniority: 'senior'
+          capacity: 8
+        
+        - username: 'docs-writer'
+          expertise: ['documentation', 'api-docs']
+          seniority: 'mid'
+          capacity: 6
+  
+  # Workload balancing
+  workload_balancing:
+    enabled: true
+    max_issues_per_member: 5
+    max_critical_issues_per_member: 2
+    workload_threshold: 0.8  # 80% capacity
+    auto_reassignment: true
+  
+  # Assignment rules by issue type
+  rules:
+    security:
+      team: 'security_team'
+      fallback: 'dev_team'
+      require_senior: true
+    
+    performance:
+      team: 'performance_team'
+      fallback: 'dev_team'
+      require_senior: false
+    
+    bug:
+      team: 'qa_team'
+      fallback: 'dev_team'
+      require_senior: false
+    
+    architecture:
+      team: 'arch_team'
+      fallback: 'dev_team'
+      require_senior: true
+    
+    quality:
+      team: 'dev_team'
+      fallback: 'senior_dev'
+      require_senior: false
+    
+    style:
+      team: 'dev_team'
+      fallback: 'junior_dev'
+      require_senior: false
+    
+    documentation:
+      team: 'docs_team'
+      fallback: 'dev_team'
+      require_senior: false
+    
+    testing:
+      team: 'qa_team'
+      fallback: 'dev_team'
+      require_senior: false
+
+# Issue Labeling Configuration
+labeling:
+  # Enable automatic labeling
+  enabled: true
+  
+  # Label management
+  management:
+    auto_create_labels: true
+    auto_update_labels: true
+    preserve_existing_labels: true
+    max_labels_per_issue: 10
+    label_conflict_resolution: 'merge'  # merge, replace, skip
+  
+  # Label sets
+  label_sets:
+    # Severity labels
+    severity:
+      critical: { name: 'severity:critical', color: 'd73a4a', description: 'Critical issue requiring immediate attention' }
+      high: { name: 'severity:high', color: 'fbca04', description: 'High priority issue' }
+      medium: { name: 'severity:medium', color: 'fef2c0', description: 'Medium priority issue' }
+      low: { name: 'severity:low', color: 'd4c5f9', description: 'Low priority issue' }
+      info: { name: 'severity:info', color: 'bfdadc', description: 'Informational issue' }
+    
+    # Issue type labels
+    type:
+      security: { name: 'type:security', color: 'd73a4a', description: 'Security-related issue' }
+      performance: { name: 'type:performance', color: 'fbca04', description: 'Performance-related issue' }
+      bug: { name: 'type:bug', color: 'd73a4a', description: 'Bug or defect' }
+      quality: { name: 'type:quality', color: '0075ca', description: 'Code quality issue' }
+      style: { name: 'type:style', color: 'bfdadc', description: 'Code style or formatting issue' }
+      architecture: { name: 'type:architecture', color: '0075ca', description: 'Architectural issue' }
+      documentation: { name: 'type:documentation', color: '0075ca', description: 'Documentation issue' }
+      testing: { name: 'type:testing', color: '0e8a16', description: 'Testing-related issue' }
+    
+    # Priority labels
+    priority:
+      immediate: { name: 'priority:immediate', color: 'd73a4a', description: 'Immediate action required' }
+      high: { name: 'priority:high', color: 'fbca04', description: 'High priority' }
+      normal: { name: 'priority:normal', color: '0075ca', description: 'Normal priority' }
+      low: { name: 'priority:low', color: 'bfdadc', description: 'Low priority' }
+      lowest: { name: 'priority:lowest', color: 'bfdadc', description: 'Lowest priority' }
+    
+    # Component labels
+    component:
+      frontend: { name: 'component:frontend', color: '0075ca', description: 'Frontend component' }
+      backend: { name: 'component:backend', color: '0075ca', description: 'Backend component' }
+      database: { name: 'component:database', color: '0075ca', description: 'Database component' }
+      api: { name: 'component:api', color: '0075ca', description: 'API component' }
+      infrastructure: { name: 'component:infrastructure', color: '0075ca', description: 'Infrastructure component' }
+      security: { name: 'component:security', color: '0075ca', description: 'Security component' }
+      testing: { name: 'component:testing', color: '0075ca', description: 'Testing component' }
+    
+    # Technology labels
+    technology:
+      javascript: { name: 'tech:javascript', color: 'f1e05a', description: 'JavaScript/Node.js' }
+      typescript: { name: 'tech:typescript', color: '2b7489', description: 'TypeScript' }
+      python: { name: 'tech:python', color: '3572A5', description: 'Python' }
+      java: { name: 'tech:java', color: 'b07219', description: 'Java' }
+      csharp: { name: 'tech:csharp', color: '178600', description: 'C#' }
+      go: { name: 'tech:go', color: '00ADD8', description: 'Go' }
+      rust: { name: 'tech:rust', color: 'dea584', description: 'Rust' }
+      php: { name: 'tech:php', color: '4F5D95', description: 'PHP' }
+      ruby: { name: 'tech:ruby', color: '701516', description: 'Ruby' }
+    
+    # Special labels
+    special:
+      ai_review: { name: 'ai-review', color: '6f42c1', description: 'Generated by AI Code Review' }
+      auto_assigned: { name: 'auto-assigned', color: 'bfdadc', description: 'Automatically assigned' }
+      needs_triage: { name: 'needs-triage', color: 'fbca04', description: 'Needs initial triage' }
+      good_first_issue: { name: 'good first issue', color: '0e8a16', description: 'Good for new contributors' }
+      help_wanted: { name: 'help wanted', color: '0075ca', description: 'Help needed' }
+      enhancement: { name: 'enhancement', color: 'a2eeef', description: 'New feature or request' }
+      wontfix: { name: 'wontfix', color: 'ffffff', description: 'Will not be fixed' }
+  
+  # Label application rules
+  rules:
+    # Automatic labels based on issue type
+    auto_labels:
+      security: ['type:security', 'ai-review', 'needs-triage']
+      performance: ['type:performance', 'ai-review']
+      bug: ['type:bug', 'ai-review', 'needs-triage']
+      quality: ['type:quality', 'ai-review']
+      style: ['type:style', 'ai-review']
+      architecture: ['type:architecture', 'ai-review']
+      documentation: ['type:documentation', 'ai-review']
+      testing: ['type:testing', 'ai-review']
+    
+    # Labels based on severity
+    severity_labels:
+      critical: ['severity:critical', 'priority:immediate']
+      high: ['severity:high', 'priority:high']
+      medium: ['severity:medium', 'priority:normal']
+      low: ['severity:low', 'priority:low']
+      info: ['severity:info', 'priority:lowest']
+    
+    # Labels based on file path
+    path_labels:
+      'frontend/': ['component:frontend']
+      'backend/': ['component:backend']
+      'api/': ['component:api']
+      'database/': ['component:database']
+      'infrastructure/': ['component:infrastructure']
+      'security/': ['component:security']
+      'tests/': ['component:testing']
+      '.js': ['tech:javascript']
+      '.ts': ['tech:typescript']
+      '.py': ['tech:python']
+      '.java': ['tech:java']
+      '.cs': ['tech:csharp']
+      '.go': ['tech:go']
+      '.rs': ['tech:rust']
+      '.php': ['tech:php']
+      '.rb': ['tech:ruby']
+    
+    # Labels based on issue content
+    content_labels:
+      'sql injection': ['type:security', 'needs-triage']
+      'xss': ['type:security', 'needs-triage']
+      'buffer overflow': ['type:security', 'needs-triage']
+      'memory leak': ['type:performance', 'needs-triage']
+      'race condition': ['type:bug', 'needs-triage']
+      'deadlock': ['type:bug', 'needs-triage']
+      'infinite loop': ['type:bug', 'needs-triage']
+      'null pointer': ['type:bug', 'needs-triage']
+      'hardcoded': ['type:security', 'needs-triage']
+      'weak encryption': ['type:security', 'needs-triage']
+      'insecure random': ['type:security', 'needs-triage']
+      'path traversal': ['type:security', 'needs-triage']
+      'command injection': ['type:security', 'needs-triage']
+      'privilege escalation': ['type:security', 'needs-triage']
+
+# Issue Management Configuration
+management:
+  # Issue lifecycle
+  lifecycle:
+    # Auto-close resolved issues
+    auto_close: false
+    
+    # Auto-close delay (days)
+    auto_close_delay: 30
+    
+    # Issue status workflow
+    status_workflow:
+      - new
+      - assigned
+      - in_progress
+      - review
+      - resolved
+      - closed
+    
+    # Required status transitions
+    required_transitions:
+      critical: ['new', 'assigned', 'in_progress', 'review', 'resolved']
+      high: ['new', 'assigned', 'in_progress', 'review', 'resolved']
+      medium: ['new', 'assigned', 'in_progress', 'resolved']
+      low: ['new', 'assigned', 'resolved']
+      info: ['new', 'resolved']
+  
+  # Issue deduplication
+  deduplication:
+    enabled: true
+    
+    # Deduplication criteria
+    criteria:
+      - file_path
+      - issue_type
+      - severity
+      - description_similarity
+    
+    # Similarity threshold (0-1)
+    similarity_threshold: 0.8
+    
+    # Merge strategy
+    merge_strategy: 'combine'  # combine, keep_newest, keep_oldest
+  
+  # Issue grouping
+  grouping:
+    enabled: true
+    
+    # Group by criteria
+    group_by:
+      - file_path
+      - issue_type
+      - severity
+    
+    # Maximum issues per group
+    max_per_group: 10
+    
+    # Group title format
+    title_format: '${issue_type} issues in ${file_path} (${count} issues)'
+
+# Integration Configuration
+integration:
+  # GitHub integration
+  github:
+    # Issue creation
+    create_issues: true
+    
+    # Issue updates
+    update_issues: true
+    
+    # Issue comments
+    add_comments: true
+    
+    # Issue reactions
+    add_reactions: true
+    
+    # Issue assignments
+    assign_issues: true
+    
+    # Issue labels
+    add_labels: true
+    
+    # Issue milestones
+    set_milestones: false
+    
+    # Issue projects
+    add_to_projects: false
+  
+  # Email notifications
+  email:
+    # Notify on issue creation
+    notify_creation: true
+    
+    # Notify on assignment
+    notify_assignment: true
+    
+    # Notify on status change
+    notify_status_change: true
+    
+    # Notify on critical issues
+    notify_critical: true
+    
+    # Recipients for different notification types
+    recipients:
+      creation: ['dev-team@company.com']
+      assignment: ['assigned-user@company.com']
+      critical: ['dev-team@company.com', 'security-team@company.com', 'management@company.com']
+      status_change: ['dev-team@company.com']
+
+# Performance Configuration
+performance:
+  # Rate limiting
+  rate_limiting:
+    enabled: true
+    max_issues_per_minute: 10
+    max_issues_per_hour: 100
+    cooldown_minutes: 5
+  
+  # Caching
+  caching:
+    enabled: true
+    cache_duration_minutes: 30
+    max_cache_size: 1000
+  
+  # Batch processing
+  batch_processing:
+    enabled: true
+    batch_size: 10
+    batch_delay_ms: 1000
+
+# Logging and Monitoring
+logging:
+  # Log level
+  level: 'info'  # debug, info, warn, error
+  
+  # Log issue creation
+  log_creation: true
+  
+  # Log assignment
+  log_assignment: true
+  
+  # Log labeling
+  log_labeling: true
+  
+  # Log performance metrics
+  log_performance: true
+  
+  # Log errors
+  log_errors: true
+  
+  # Structured logging
+  structured: true
+  
+  # Log to file
+  file_logging:
+    enabled: true
+    file_path: './logs/issue-creation.log'
+    max_size: '10MB'
+    max_files: 5
+
+# Environment-specific overrides
+environments:
+  development:
+    issue_creation:
+      enabled: false  # Disable in development
+      max_issues_per_review: 5
+    
+    assignment:
+      enabled: false  # Disable auto-assignment in dev
+    
+    labeling:
+      enabled: false  # Disable auto-labeling in dev
+  
+  staging:
+    issue_creation:
+      max_issues_per_review: 20
+    
+    assignment:
+      enabled: true
+      workload_threshold: 0.6  # Lower threshold in staging
+  
+  production:
+    issue_creation:
+      enabled: true
+      max_issues_per_review: 50
+    
+    assignment:
+      enabled: true
+      workload_threshold: 0.8
+    
+    labeling:
+      enabled: true
+      auto_create_labels: true
+
+# Validation rules
+validation:
+  required_fields:
+    - issue_creation.enabled
+    - severity.levels
+    - assignment.teams
+    - labeling.label_sets
+  
+  severity_levels:
+    - critical
+    - high
+    - medium
+    - low
+    - info
+  
+  max_values:
+    max_issues_per_review: 100
+    max_labels_per_issue: 20
+    max_issues_per_member: 10
+    workload_threshold: 1.0
+  
+  min_values:
+    max_issues_per_review: 1
+    max_labels_per_issue: 1
+    max_issues_per_member: 1
+    workload_threshold: 0.1
+
+# Example configurations for common scenarios
+examples:
+  # Security-focused configuration
+  security_focused:
+    severity:
+      levels:
+        security:
+          auto_create: true
+          block_deployment: true
+          require_immediate_action: true
+    
+    assignment:
+      rules:
+        security:
+          team: 'security_team'
+          require_senior: true
+    
+    labeling:
+      rules:
+        auto_labels:
+          security: ['type:security', 'ai-review', 'needs-triage', 'security-critical']
+  
+  # Performance-focused configuration
+  performance_focused:
+    severity:
+      levels:
+        performance:
+          auto_create: true
+          block_deployment: false
+          require_immediate_action: false
+    
+    assignment:
+      rules:
+        performance:
+          team: 'performance_team'
+          require_senior: false
+    
+    labeling:
+      rules:
+        auto_labels:
+          performance: ['type:performance', 'ai-review', 'performance-review']
+  
+  # Quality-focused configuration
+  quality_focused:
+    issue_creation:
+      triggers:
+        severity_threshold: 'low'  # Create issues for all severity levels
+    
+    assignment:
+      rules:
+        quality:
+          team: 'dev_team'
+          require_senior: false
+    
+    labeling:
+      rules:
+        auto_labels:
+          quality: ['type:quality', 'ai-review', 'code-quality']
+
+# Configuration metadata
+metadata:
+  version: '1.0.0'
+  last_updated: '2024-12-19'
+  author: 'AI Code Review System'
+  description: 'Configuration for AI Code Review issue creation, assignment, and labeling'
+  schema_version: '1.0'
+  compatibility:
+    min_version: '1.0.0'
+    max_version: '2.0.0'
+

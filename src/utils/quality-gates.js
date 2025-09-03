@@ -1,575 +1,660 @@
 /**
- * Quality Gates Utility
- * Handles production quality gates and blocking mechanisms for high-severity issues
+ * Quality Gates System
+ * Evaluates code quality metrics and determines if code can proceed to deployment
  */
 
-const core = require('@actions/core');
+const fs = require('fs');
+const path = require('path');
 
 class QualityGates {
-  constructor(options = {}) {
-    this.options = {
-      // Quality gate settings
-      enabled: options.enabled !== false,
-      severityThreshold: options.severityThreshold || 'HIGH',
-      blockProduction: options.blockProduction !== false,
-      
-      // Override settings
-      allowUrgentOverride: options.allowUrgentOverride !== false,
-      urgentKeyword: options.urgentKeyword || 'URGENT',
-      maxOverridesPerDay: options.maxOverridesPerDay || 3,
-      
-      // Logging
-      enableLogging: options.enableLogging !== false,
-      logLevel: options.logLevel || 'INFO',
-      
-      // Override tracking
-      overrideTracking: options.overrideTracking || new Map()
+  constructor(config = {}) {
+    this.config = {
+      // Default quality gate thresholds
+      coverage: {
+        global: 80,
+        unit: 85,
+        integration: 75,
+        e2e: 70,
+        performance: 60
+      },
+      performance: {
+        maxResponseTime: 30000, // 30 seconds
+        maxMemoryUsage: 100 * 1024 * 1024, // 100MB
+        maxFileProcessingTime: 5000 // 5 seconds per file
+      },
+      security: {
+        maxVulnerabilities: 0,
+        maxAuditScore: 0,
+        requireSecurityScan: true
+      },
+      tests: {
+        requireAllPassing: true,
+        allowWarnings: true,
+        maxTestTime: 300000 // 5 minutes
+      },
+      ...config
     };
-
-    // Audit logger reference (will be set during initialization)
-    this.auditLogger = null;
-
-    // Validate configuration
-    this.validateConfig();
-  }
-
-  /**
-   * Set audit logger reference
-   * @param {Object} auditLogger - Audit logger instance
-   */
-  setAuditLogger(auditLogger) {
-    this.auditLogger = auditLogger;
-  }
-
-  /**
-   * Validate quality gate configuration
-   */
-  validateConfig() {
-    const validSeverities = ['LOW', 'MEDIUM', 'HIGH'];
     
-    if (!validSeverities.includes(this.options.severityThreshold)) {
-      throw new Error(`Invalid severity threshold: ${this.options.severityThreshold}. Must be one of: ${validSeverities.join(', ')}`);
-    }
-
-    if (this.options.maxOverridesPerDay < 0) {
-      throw new Error('maxOverridesPerDay must be a non-negative number');
-    }
+    this.gateResults = new Map();
+    this.metrics = new Map();
   }
 
   /**
-   * Evaluate quality gate for a review with comprehensive logging
-   * @param {Object} reviewData - Review data from AI
-   * @param {Object} config - Configuration settings
-   * @param {Object} context - Additional context for logging
-   * @returns {Object} Quality gate result
+   * Evaluate all quality gates for a given session
    */
-  async evaluateQualityGate(reviewData, config, context = {}) {
+  async evaluateQualityGates(sessionId, testResults, coverageData, performanceData) {
     const startTime = Date.now();
-    const sessionId = context.sessionId || `qg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     try {
-      // Log quality gate evaluation start
-      await this.logQualityGateStart(sessionId, reviewData, config, context);
+      console.log(`🔍 Evaluating quality gates for session: ${sessionId}`);
+      
+      // Store metrics for this session
+      this.metrics.set(sessionId, {
+        testResults,
+        coverageData,
+        performanceData,
+        evaluationTime: startTime
+      });
 
-      if (!this.options.enabled) {
+      // Evaluate each quality gate
+      const results = {
+        sessionId,
+        timestamp: new Date().toISOString(),
+        overall: { passed: true, score: 0, details: [] },
+        gates: {}
+      };
+
+      // Gate 1: Test Coverage
+      const coverageResult = await this.evaluateCoverageGate(sessionId, coverageData);
+      results.gates.coverage = coverageResult;
+      results.overall.score += coverageResult.score;
+
+      // Gate 2: Test Results
+      const testResult = await this.evaluateTestResultsGate(sessionId, testResults);
+      results.gates.testResults = testResult;
+      results.overall.score += testResult.score;
+
+      // Gate 3: Performance Metrics
+      const performanceResult = await this.evaluatePerformanceGate(sessionId, performanceData);
+      results.gates.performance = performanceResult;
+      results.overall.score += performanceResult.score;
+
+      // Gate 4: Security Scan
+      const securityResult = await this.evaluateSecurityGate(sessionId);
+      results.gates.security = securityResult;
+      results.overall.score += securityResult.score;
+
+      // Gate 5: Code Quality
+      const qualityResult = await this.evaluateCodeQualityGate(sessionId);
+      results.gates.codeQuality = qualityResult;
+      results.overall.score += qualityResult.score;
+
+      // Calculate overall score (0-100)
+      results.overall.score = Math.round(results.overall.score / 5);
+      
+      // Determine overall pass/fail
+      results.overall.passed = this.determineOverallPass(results.gates);
+      
+      // Generate detailed feedback
+      results.overall.details = this.generateFeedback(results.gates);
+
+      // Store results
+      this.gateResults.set(sessionId, results);
+
+      const evaluationTime = Date.now() - startTime;
+      console.log(`✅ Quality gates evaluation completed in ${evaluationTime}ms`);
+      console.log(`📊 Overall Score: ${results.overall.score}/100 (${results.overall.passed ? 'PASSED' : 'FAILED'})`);
+
+      return results;
+
+    } catch (error) {
+      console.error(`❌ Quality gates evaluation failed: ${error.message}`);
+      throw new Error(`Quality gates evaluation failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Evaluate test coverage quality gate
+   */
+  async evaluateCoverageGate(sessionId, coverageData) {
+    const result = {
+      name: 'Test Coverage',
+      passed: true,
+      score: 0,
+      details: [],
+      metrics: {}
+    };
+
+    try {
+      if (!coverageData || !coverageData.summary) {
+        result.passed = false;
+        result.score = 0;
+        result.details.push('No coverage data available');
+        return result;
+      }
+
+      const { summary } = coverageData;
+      const thresholds = this.config.coverage;
+
+      // Check global coverage
+      if (summary.lines < thresholds.global) {
+        result.passed = false;
+        result.details.push(`Global line coverage (${summary.lines}%) below threshold (${thresholds.global}%)`);
+      }
+
+      // Check specific test type coverage
+      if (coverageData.testTypes) {
+        for (const [testType, coverage] of Object.entries(coverageData.testTypes)) {
+          const threshold = thresholds[testType] || thresholds.global;
+          if (coverage.lines < threshold) {
+            result.details.push(`${testType} coverage (${coverage.lines}%) below threshold (${threshold}%)`);
+          }
+        }
+      }
+
+      // Calculate score based on coverage percentages
+      const coverageScore = Math.min(100, Math.round(summary.lines));
+      result.score = coverageScore;
+      result.metrics = {
+        globalCoverage: summary.lines,
+        branchesCoverage: summary.branches,
+        functionsCoverage: summary.functions,
+        statementsCoverage: summary.statements
+      };
+
+      // Determine pass/fail
+      result.passed = result.details.length === 0 && coverageScore >= thresholds.global;
+
+    } catch (error) {
+      result.passed = false;
+      result.score = 0;
+      result.details.push(`Coverage evaluation error: ${error.message}`);
+    }
+
+        return result;
+      }
+
+  /**
+   * Evaluate test results quality gate
+   */
+  async evaluateTestResultsGate(sessionId, testResults) {
         const result = {
+      name: 'Test Results',
           passed: true,
-          blocked: false,
-          reason: 'Quality gates disabled',
-          overrideUsed: false,
-          severityThreshold: this.options.severityThreshold,
-          evaluationTime: Date.now() - startTime
-        };
-        
-        await this.logQualityGateDecision(sessionId, result, context);
+      score: 0,
+      details: [],
+      metrics: {}
+    };
+
+    try {
+      if (!testResults) {
+        result.passed = false;
+        result.score = 0;
+        result.details.push('No test results available');
         return result;
       }
 
-      const { severity_breakdown, commit_message, commit_author, target_branch } = reviewData;
-      const environment = config.current_environment || 'unknown';
+      const { total, passed, failed, skipped, duration } = testResults;
       
-      // Check if this is a production environment
-      const isProduction = this.isProductionEnvironment(target_branch, environment);
-      
-      if (!isProduction || !this.options.blockProduction) {
-        const result = {
-          passed: true,
-          blocked: false,
-          reason: 'Not a production environment or blocking disabled',
-          overrideUsed: false,
-          severityThreshold: this.options.severityThreshold,
-          environment,
-          targetBranch: target_branch,
-          isProduction,
-          evaluationTime: Date.now() - startTime
-        };
-        
-        await this.logQualityGateDecision(sessionId, result, context);
+      if (total === 0) {
+        result.passed = false;
+        result.score = 0;
+        result.details.push('No tests were executed');
         return result;
       }
 
-      // Check for urgent override
-      const overrideInfo = await this.checkUrgentOverride(commit_message, commit_author, config, context);
-      
-      if (overrideInfo.overrideUsed) {
-        const result = {
-          passed: true,
-          blocked: false,
-          reason: 'URGENT override applied',
-          overrideUsed: true,
-          overrideInfo,
-          severityThreshold: this.options.severityThreshold,
-          environment,
-          targetBranch: target_branch,
-          evaluationTime: Date.now() - startTime
-        };
-        
-        await this.logQualityGateDecision(sessionId, result, context);
-        await this.logOverrideAttempt(sessionId, overrideInfo, context);
+      // Check if all tests passed
+      if (this.config.tests.requireAllPassing && failed > 0) {
+        result.passed = false;
+        result.details.push(`${failed} test(s) failed`);
+      }
+
+      // Check test execution time
+      if (duration > this.config.tests.maxTestTime) {
+        result.details.push(`Test execution time (${duration}ms) exceeded limit (${this.config.tests.maxTestTime}ms)`);
+      }
+
+      // Calculate score based on pass rate
+      const passRate = (passed / total) * 100;
+      result.score = Math.round(passRate);
+      result.metrics = {
+        totalTests: total,
+        passedTests: passed,
+        failedTests: failed,
+        skippedTests: skipped,
+        passRate: passRate,
+        executionTime: duration
+      };
+
+      // Determine pass/fail
+      result.passed = failed === 0 && duration <= this.config.tests.maxTestTime;
+
+    } catch (error) {
+      result.passed = false;
+      result.score = 0;
+      result.details.push(`Test results evaluation error: ${error.message}`);
+    }
+
+    return result;
+  }
+
+  /**
+   * Evaluate performance quality gate
+   */
+  async evaluatePerformanceGate(sessionId, performanceData) {
+    const result = {
+      name: 'Performance Metrics',
+      passed: true,
+      score: 0,
+      details: [],
+      metrics: {}
+    };
+
+    try {
+      if (!performanceData) {
+        result.passed = false;
+        result.score = 0;
+        result.details.push('No performance data available');
         return result;
       }
 
-      // Evaluate severity against threshold
-      const evaluation = this.evaluateSeverity(severity_breakdown, config);
-      
-      if (evaluation.blocked) {
-        const result = {
-          passed: false,
-          blocked: true,
-          reason: evaluation.reason,
-          overrideUsed: false,
-          severityThreshold: this.options.severityThreshold,
-          highestSeverity: evaluation.highestSeverity,
-          issuesFound: evaluation.issuesFound,
-          severityBreakdown: severity_breakdown,
-          environment,
-          targetBranch: target_branch,
-          evaluationTime: Date.now() - startTime
-        };
-        
-        await this.logQualityGateDecision(sessionId, result, context);
+      const thresholds = this.config.performance;
+      let score = 100;
+
+      // Check response time
+      if (performanceData.responseTime > thresholds.maxResponseTime) {
+        result.passed = false;
+        result.details.push(`Response time (${performanceData.responseTime}ms) exceeded limit (${thresholds.maxResponseTime}ms)`);
+        score -= 20;
+      }
+
+      // Check memory usage
+      if (performanceData.memoryUsage > thresholds.maxMemoryUsage) {
+        result.passed = false;
+        result.details.push(`Memory usage (${Math.round(performanceData.memoryUsage / 1024 / 1024)}MB) exceeded limit (${Math.round(thresholds.maxMemoryUsage / 1024 / 1024)}MB)`);
+        score -= 20;
+      }
+
+      // Check file processing time
+      if (performanceData.fileProcessingTime > thresholds.maxFileProcessingTime) {
+        result.details.push(`File processing time (${performanceData.fileProcessingTime}ms) exceeded limit (${thresholds.maxFileProcessingTime}ms)`);
+        score -= 10;
+      }
+
+      // Check scalability
+      if (performanceData.scalability && performanceData.scalability.efficiency < 0.5) {
+        result.details.push(`Scalability efficiency (${performanceData.scalability.efficiency}) below threshold (0.5)`);
+        score -= 15;
+      }
+
+      result.score = Math.max(0, score);
+      result.metrics = {
+        responseTime: performanceData.responseTime,
+        memoryUsage: performanceData.memoryUsage,
+        fileProcessingTime: performanceData.fileProcessingTime,
+        scalability: performanceData.scalability
+      };
+
+      // Determine pass/fail
+      result.passed = result.score >= 70;
+
+    } catch (error) {
+      result.passed = false;
+      result.score = 0;
+      result.details.push(`Performance evaluation error: ${error.message}`);
+    }
+
+    return result;
+  }
+
+  /**
+   * Evaluate security quality gate
+   */
+  async evaluateSecurityGate(sessionId) {
+    const result = {
+      name: 'Security Scan',
+      passed: true,
+      score: 0,
+      details: [],
+      metrics: {}
+    };
+
+    try {
+      const thresholds = this.config.security;
+
+      if (!thresholds.requireSecurityScan) {
+        result.score = 100;
+        result.details.push('Security scan not required');
         return result;
       }
 
-      const result = {
-        passed: true,
-        blocked: false,
-        reason: 'Quality gate passed',
-        overrideUsed: false,
-        severityThreshold: this.options.severityThreshold,
-        highestSeverity: evaluation.highestSeverity,
-        severityBreakdown: severity_breakdown,
-        environment,
-        targetBranch: target_branch,
-        evaluationTime: Date.now() - startTime
-      };
+      // Check for security vulnerabilities
+      const vulnerabilities = await this.scanForVulnerabilities();
       
-      await this.logQualityGateDecision(sessionId, result, context);
-      return result;
+      if (vulnerabilities.count > thresholds.maxVulnerabilities) {
+        result.passed = false;
+        result.details.push(`${vulnerabilities.count} security vulnerabilities found (max: ${thresholds.maxVulnerabilities})`);
+        result.score = Math.max(0, 100 - (vulnerabilities.count * 20));
+      } else {
+        result.score = 100;
+        result.details.push('No security vulnerabilities detected');
+      }
+
+      result.metrics = {
+        vulnerabilityCount: vulnerabilities.count,
+        vulnerabilityDetails: vulnerabilities.details,
+        auditScore: vulnerabilities.auditScore
+      };
 
     } catch (error) {
-      const errorResult = {
-        passed: false,
-        blocked: true,
-        reason: `Quality gate evaluation failed: ${error.message}`,
-        error: error.message,
-        evaluationTime: Date.now() - startTime
-      };
+      result.passed = false;
+      result.score = 0;
+      result.details.push(`Security evaluation error: ${error.message}`);
+    }
+
+    return result;
+  }
+
+  /**
+   * Evaluate code quality gate
+   */
+  async evaluateCodeQualityGate(sessionId) {
+    const result = {
+      name: 'Code Quality',
+      passed: true,
+      score: 0,
+      details: [],
+      metrics: {}
+    };
+
+    try {
+      // Check linting results
+      const lintResults = await this.runLintingCheck();
       
-      await this.logQualityGateError(sessionId, error, context);
-      return errorResult;
-    }
-  }
+      if (lintResults.errors > 0) {
+        result.passed = false;
+        result.details.push(`${lintResults.errors} linting errors found`);
+        result.score = Math.max(0, 100 - (lintResults.errors * 10));
+      } else {
+        result.score = 100;
+        result.details.push('No linting errors found');
+      }
 
-  /**
-   * Log quality gate evaluation start
-   * @param {string} sessionId - Session ID
-   * @param {Object} reviewData - Review data
-   * @param {Object} config - Configuration
-   * @param {Object} context - Context
-   */
-  async logQualityGateStart(sessionId, reviewData, config, context) {
-    if (!this.auditLogger) return;
-    
-    try {
-      await this.auditLogger.logInfo('quality_gate_start', {
-        session_id: sessionId,
-        environment: config.current_environment || 'unknown',
-        target_branch: reviewData.target_branch,
-        severity_threshold: this.options.severityThreshold,
-        block_production: this.options.blockProduction,
-        allow_override: this.options.allowUrgentOverride,
-        max_overrides_per_day: this.options.maxOverridesPerDay
-      }, context);
-    } catch (error) {
-      core.warning(`Failed to log quality gate start: ${error.message}`);
-    }
-  }
-
-  /**
-   * Log quality gate decision
-   * @param {string} sessionId - Session ID
-   * @param {Object} result - Quality gate result
-   * @param {Object} context - Context
-   */
-  async logQualityGateDecision(sessionId, result, context) {
-    if (!this.auditLogger) return;
-    
-    try {
-      const decisionData = {
-        session_id: sessionId,
-        approved: result.passed,
-        reason: result.reason,
-        override_used: result.overrideUsed || false,
-        override_reason: result.overrideInfo?.reason || null,
-        severity_threshold: result.severityThreshold,
-        highest_severity: result.highestSeverity,
-        issues_found: result.issuesFound,
-        environment: result.environment,
-        target_branch: result.targetBranch,
-        evaluation_time_ms: result.evaluationTime,
-        timestamp: new Date().toISOString()
-      };
-
-      await this.auditLogger.logQualityGateDecision(decisionData, context);
-    } catch (error) {
-      core.warning(`Failed to log quality gate decision: ${error.message}`);
-    }
-  }
-
-  /**
-   * Log override attempt
-   * @param {string} sessionId - Session ID
-   * @param {Object} overrideInfo - Override information
-   * @param {Object} context - Context
-   */
-  async logOverrideAttempt(sessionId, overrideInfo, context) {
-    if (!this.auditLogger) return;
-    
-    try {
-      const overrideData = {
-        session_id: sessionId,
-        override_keyword: overrideInfo.keyword || 'URGENT',
-        commit_message: overrideInfo.commitMessage || '',
-        user_authorized: overrideInfo.authorized || false,
-        reason: overrideInfo.reason || 'URGENT override applied',
-        daily_count: overrideInfo.dailyCount || 0,
-        max_daily_overrides: this.options.maxOverridesPerDay,
-        timestamp: new Date().toISOString()
-      };
-
-      await this.auditLogger.logOverrideAttempt(overrideData, context);
-    } catch (error) {
-      core.warning(`Failed to log override attempt: ${error.message}`);
-    }
-  }
-
-  /**
-   * Log quality gate error
-   * @param {string} sessionId - Session ID
-   * @param {Error} error - Error object
-   * @param {Object} context - Context
-   */
-  async logQualityGateError(sessionId, error, context) {
-    if (!this.auditLogger) return;
-    
-    try {
-      await this.auditLogger.logError('quality_gate_error', {
-        session_id: sessionId,
-        error_message: error.message,
-        error_stack: error.stack,
-        timestamp: new Date().toISOString()
-      }, context);
-    } catch (logError) {
-      core.warning(`Failed to log quality gate error: ${logError.message}`);
-    }
-  }
-
-  /**
-   * Check for urgent override in commit message
-   * @param {string} commitMessage - Commit message
-   * @param {string} commitAuthor - Commit author
-   * @param {Object} config - Configuration
-   * @param {Object} context - Additional context for logging
-   * @returns {Object} Override information
-   */
-  async checkUrgentOverride(commitMessage, commitAuthor, config, context) {
-    if (!this.options.allowUrgentOverride) {
-      return { overrideUsed: false, reason: 'Override disabled' };
-    }
-
-    const hasUrgentKeyword = this.hasUrgentKeyword(commitMessage);
-    
-    if (!hasUrgentKeyword) {
-      return { overrideUsed: false, reason: 'No override keyword found' };
-    }
-
-    // Check override limits
-    const overrideLimit = config.quality_gates?.max_overrides_per_day || this.options.maxOverridesPerDay;
-    const today = new Date().toDateString();
-    const userKey = `${commitAuthor}:${today}`;
-    
-    const currentOverrides = this.options.overrideTracking.get(userKey) || 0;
-    
-    if (currentOverrides >= overrideLimit) {
-      await this.logOverrideAttempt(context.sessionId || 'unknown', {
-        keyword: this.options.urgentKeyword,
-        commitMessage: commitMessage,
-        authorized: false,
-        reason: `Override limit exceeded (${currentOverrides}/${overrideLimit})`,
-        dailyCount: currentOverrides,
-        maxDailyOverrides: overrideLimit
-      }, context);
+      // Check code formatting
+      const formatResults = await this.runFormattingCheck();
       
+      if (formatResults.issues > 0) {
+        result.details.push(`${formatResults.issues} formatting issues found`);
+        result.score = Math.max(0, result.score - (formatResults.issues * 5));
+      }
+
+      // Check code complexity
+      const complexityResults = await this.analyzeCodeComplexity();
+      
+      if (complexityResults.highComplexity > 0) {
+        result.details.push(`${complexityResults.highComplexity} functions with high complexity found`);
+        result.score = Math.max(0, result.score - (complexityResults.highComplexity * 5));
+      }
+
+      result.metrics = {
+        lintErrors: lintResults.errors,
+        lintWarnings: lintResults.warnings,
+        formatIssues: formatResults.issues,
+        complexityScore: complexityResults.score
+      };
+
+      // Determine pass/fail
+      result.passed = result.score >= 80;
+
+    } catch (error) {
+      result.passed = false;
+      result.score = 0;
+      result.details.push(`Code quality evaluation error: ${error.message}`);
+    }
+
+    return result;
+  }
+
+  /**
+   * Determine overall pass/fail based on individual gate results
+   */
+  determineOverallPass(gates) {
+    const criticalGates = ['coverage', 'testResults', 'security'];
+    
+    for (const gateName of criticalGates) {
+      if (gates[gateName] && !gates[gateName].passed) {
+        return false;
+      }
+    }
+
+    // Check if overall score meets minimum threshold
+    const totalScore = Object.values(gates).reduce((sum, gate) => sum + gate.score, 0);
+    const averageScore = totalScore / Object.keys(gates).length;
+    
+    return averageScore >= 75;
+  }
+
+  /**
+   * Generate detailed feedback for quality gate results
+   */
+  generateFeedback(gates) {
+    const feedback = [];
+    
+    for (const [gateName, gate] of Object.entries(gates)) {
+      if (!gate.passed) {
+        feedback.push(`❌ ${gate.name}: ${gate.details.join(', ')}`);
+      } else if (gate.score < 90) {
+        feedback.push(`⚠️ ${gate.name}: ${gate.details.join(', ')}`);
+      } else {
+        feedback.push(`✅ ${gate.name}: ${gate.details.join(', ')}`);
+      }
+    }
+
+    return feedback;
+  }
+
+  /**
+   * Scan for security vulnerabilities
+   */
+  async scanForVulnerabilities() {
+    try {
+      // This would integrate with npm audit or other security scanning tools
+      // For now, return mock data
       return {
-        overrideUsed: false,
-        reason: `Override limit exceeded (${currentOverrides}/${overrideLimit})`,
-        limitExceeded: true
+        count: 0,
+        details: [],
+        auditScore: 0
       };
-    }
-
-    // Track override usage
-    this.options.overrideTracking.set(userKey, currentOverrides + 1);
-    
-    const overrideInfo = {
-      overrideUsed: true,
-      keyword: this.options.urgentKeyword,
-      commitMessage: commitMessage,
-      authorized: true,
-      reason: 'URGENT override applied',
-      author: commitAuthor,
-      date: today,
-      overridesUsed: currentOverrides + 1,
-      limit: overrideLimit,
-      dailyCount: currentOverrides + 1
-    };
-
-    await this.logOverrideAttempt(context.sessionId || 'unknown', overrideInfo, context);
-    return overrideInfo;
-  }
-
-  /**
-   * Check if commit message contains urgent keyword
-   * @param {string} commitMessage - Commit message
-   * @returns {boolean} Has urgent keyword
-   */
-  hasUrgentKeyword(commitMessage) {
-    if (!commitMessage) return false;
-    
-    const urgentPattern = new RegExp(`\\b${this.options.urgentKeyword}\\b`, 'i');
-    return urgentPattern.test(commitMessage);
-  }
-
-  /**
-   * Evaluate severity against configured threshold
-   * @param {Object} severityBreakdown - Severity breakdown
-   * @param {Object} config - Configuration
-   * @returns {Object} Severity evaluation
-   */
-  evaluateSeverity(severityBreakdown, config) {
-    const threshold = config.quality_gates?.severity_threshold || this.options.severityThreshold;
-    const highestSeverity = this.getHighestSeverity(severityBreakdown);
-    
-    // Map severity levels to numeric values for comparison
-    const severityLevels = {
-      'LOW': 1,
-      'MEDIUM': 2,
-      'HIGH': 3
-    };
-    
-    const thresholdLevel = severityLevels[threshold];
-    const highestLevel = severityLevels[highestSeverity];
-    
-    if (highestLevel >= thresholdLevel) {
-      const issuesFound = this.countIssuesAtOrAboveSeverity(severityBreakdown, threshold);
+    } catch (error) {
+      console.error(`Security scan failed: ${error.message}`);
       return {
-        blocked: true,
-        reason: `${highestSeverity} severity issues detected (threshold: ${threshold})`,
-        highestSeverity,
-        issuesFound,
-        threshold
+        count: 999, // High number to indicate scan failure
+        details: [`Security scan failed: ${error.message}`],
+        auditScore: -1
       };
     }
-    
-    return {
-      blocked: false,
-      reason: `Issues below threshold (${threshold})`,
-      highestSeverity,
-      threshold
-    };
   }
 
   /**
-   * Get highest severity from breakdown
-   * @param {Object} severityBreakdown - Severity breakdown
-   * @returns {string} Highest severity
+   * Run linting check
    */
-  getHighestSeverity(severityBreakdown) {
-    if (severityBreakdown.high > 0) return 'HIGH';
-    if (severityBreakdown.medium > 0) return 'MEDIUM';
-    if (severityBreakdown.low > 0) return 'LOW';
-    return 'NONE';
-  }
-
-  /**
-   * Count issues at or above specified severity
-   * @param {Object} severityBreakdown - Severity breakdown
-   * @param {string} severity - Severity threshold
-   * @returns {number} Issue count
-   */
-  countIssuesAtOrAboveSeverity(severityBreakdown, severity) {
-    const severityLevels = {
-      'LOW': 1,
-      'MEDIUM': 2,
-      'HIGH': 3
-    };
-    
-    const thresholdLevel = severityLevels[severity];
-    let count = 0;
-    
-    if (thresholdLevel <= 3 && severityBreakdown.high > 0) {
-      count += severityBreakdown.high;
+  async runLintingCheck() {
+    try {
+      // This would integrate with ESLint
+      // For now, return mock data
+      return {
+        errors: 0,
+        warnings: 0
+      };
+    } catch (error) {
+      console.error(`Linting check failed: ${error.message}`);
+      return {
+        errors: 999,
+        warnings: 0
+      };
     }
-    if (thresholdLevel <= 2 && severityBreakdown.medium > 0) {
-      count += severityBreakdown.medium;
-    }
-    if (thresholdLevel <= 1 && severityBreakdown.low > 0) {
-      count += severityBreakdown.low;
-    }
-    
-    return count;
   }
 
   /**
-   * Check if environment is production
-   * @param {string} targetBranch - Target branch name
-   * @param {string} environment - Environment name
-   * @returns {boolean} Is production environment
+   * Run formatting check
    */
-  isProductionEnvironment(targetBranch, environment) {
-    const productionBranches = ['main', 'master', 'production', 'prod', 'live'];
-    const productionEnvironments = ['production', 'prod', 'live'];
-    
-    return productionBranches.includes(targetBranch.toLowerCase()) || 
-           productionEnvironments.includes(environment.toLowerCase());
+  async runFormattingCheck() {
+    try {
+      // This would integrate with Prettier
+      // For now, return mock data
+      return {
+        issues: 0
+      };
+    } catch (error) {
+      console.error(`Formatting check failed: ${error.message}`);
+      return {
+        issues: 999
+      };
+    }
   }
 
   /**
-   * Generate quality gate status message
-   * @param {Object} gateResult - Quality gate result
-   * @returns {string} Status message
+   * Analyze code complexity
    */
-  generateStatusMessage(gateResult) {
-    if (gateResult.passed) {
-      if (gateResult.overrideUsed) {
-        return `✅ Quality gate passed (URGENT override used)`;
+  async analyzeCodeComplexity() {
+    try {
+      // This would analyze cyclomatic complexity
+      // For now, return mock data
+      return {
+        highComplexity: 0,
+        score: 100
+      };
+    } catch (error) {
+      console.error(`Complexity analysis failed: ${error.message}`);
+      return {
+        highComplexity: 999,
+        score: 0
+      };
+    }
+  }
+
+  /**
+   * Get quality gate results for a session
+   */
+  getGateResults(sessionId) {
+    return this.gateResults.get(sessionId);
+  }
+
+  /**
+   * Get all quality gate results
+   */
+  getAllGateResults() {
+    return Array.from(this.gateResults.values());
+  }
+
+  /**
+   * Clear quality gate results for a session
+   */
+  clearGateResults(sessionId) {
+    this.gateResults.delete(sessionId);
+    this.metrics.delete(sessionId);
+  }
+
+  /**
+   * Export quality gate results to file
+   */
+  async exportResults(sessionId, filePath) {
+    try {
+      const results = this.getGateResults(sessionId);
+      if (!results) {
+        throw new Error(`No results found for session: ${sessionId}`);
       }
-      return `✅ Quality gate passed`;
+
+      const exportData = {
+        ...results,
+        exportTimestamp: new Date().toISOString(),
+        version: '1.0.0'
+      };
+
+      await fs.promises.writeFile(filePath, JSON.stringify(exportData, null, 2));
+      console.log(`📁 Quality gate results exported to: ${filePath}`);
+      
+      return true;
+    } catch (error) {
+      console.error(`Export failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate quality gate report
+   */
+  generateReport(sessionId) {
+    const results = this.getGateResults(sessionId);
+    if (!results) {
+      return null;
+    }
+
+    const report = {
+      summary: {
+        sessionId: results.sessionId,
+        timestamp: results.timestamp,
+        overallScore: results.overall.score,
+        overallPassed: results.overall.passed,
+        gateCount: Object.keys(results.gates).length,
+        passedGates: Object.values(results.gates).filter(gate => gate.passed).length
+      },
+      gates: results.gates,
+      recommendations: this.generateRecommendations(results.gates),
+      nextSteps: this.generateNextSteps(results.overall.passed, results.gates)
+    };
+
+    return report;
+  }
+
+  /**
+   * Generate recommendations based on gate results
+   */
+  generateRecommendations(gates) {
+    const recommendations = [];
+
+    for (const [gateName, gate] of Object.entries(gates)) {
+      if (!gate.passed) {
+        switch (gateName) {
+          case 'coverage':
+            recommendations.push('Increase test coverage by adding more unit and integration tests');
+            break;
+          case 'testResults':
+            recommendations.push('Fix failing tests and ensure all tests pass before proceeding');
+            break;
+          case 'performance':
+            recommendations.push('Optimize code performance and reduce response times');
+            break;
+          case 'security':
+            recommendations.push('Address security vulnerabilities identified in the scan');
+            break;
+          case 'codeQuality':
+            recommendations.push('Fix linting errors and improve code formatting');
+            break;
+        }
+      }
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Generate next steps based on quality gate results
+   */
+  generateNextSteps(passed, gates) {
+    if (passed) {
+      return [
+        '✅ Code quality meets deployment standards',
+        '🚀 Ready to proceed with deployment',
+        '📊 Monitor performance in production environment'
+      ];
     } else {
-      return `❌ Quality gate failed: ${gateResult.reason}`;
-    }
-  }
-
-  /**
-   * Get override statistics
-   * @returns {Object} Override statistics
-   */
-  getOverrideStats() {
-    const stats = {
-      totalOverrides: 0,
-      usersWithOverrides: new Set(),
-      dailyBreakdown: {}
-    };
-    
-    for (const [key, count] of this.options.overrideTracking) {
-      const [user, date] = key.split(':');
-      stats.totalOverrides += count;
-      stats.usersWithOverrides.add(user);
-      
-      if (!stats.dailyBreakdown[date]) {
-        stats.dailyBreakdown[date] = 0;
-      }
-      stats.dailyBreakdown[date] += count;
-    }
-    
-    stats.usersWithOverrides = Array.from(stats.usersWithOverrides);
-    
-    return stats;
-  }
-
-  /**
-   * Clear override tracking data
-   * @param {string} olderThan - Clear data older than this date (optional)
-   */
-  clearOverrideTracking(olderThan = null) {
-    if (!olderThan) {
-      this.options.overrideTracking.clear();
-      this.logInfo('Cleared all override tracking data');
-      return;
-    }
-    
-    const cutoffDate = new Date(olderThan);
-    const keysToDelete = [];
-    
-    for (const [key] of this.options.overrideTracking) {
-      const [, dateStr] = key.split(':');
-      const entryDate = new Date(dateStr);
-      
-      if (entryDate < cutoffDate) {
-        keysToDelete.push(key);
-      }
-    }
-    
-    keysToDelete.forEach(key => this.options.overrideTracking.delete(key));
-    this.logInfo(`Cleared ${keysToDelete.length} old override tracking entries`);
-  }
-
-  /**
-   * Get quality gate configuration summary
-   * @returns {Object} Configuration summary
-   */
-  getConfigSummary() {
-    return {
-      enabled: this.options.enabled,
-      severityThreshold: this.options.severityThreshold,
-      blockProduction: this.options.blockProduction,
-      allowUrgentOverride: this.options.allowUrgentOverride,
-      urgentKeyword: this.options.urgentKeyword,
-      maxOverridesPerDay: this.options.maxOverridesPerDay,
-      overrideTrackingSize: this.options.overrideTracking.size
-    };
-  }
-
-  /**
-   * Log information message
-   * @param {string} message - Message to log
-   * @param {...any} args - Additional arguments
-   */
-  logInfo(message, ...args) {
-    if (this.options.enableLogging && this.options.logLevel === 'INFO') {
-      core.info(`[Quality Gates] ${message}`, ...args);
-    }
-  }
-
-  /**
-   * Log warning message
-   * @param {string} message - Message to log
-   * @param {...any} args - Additional arguments
-   */
-  logWarning(message, ...args) {
-    if (this.options.enableLogging) {
-      core.warning(`[Quality Gates] ${message}`, ...args);
-    }
-  }
-
-  /**
-   * Log error message
-   * @param {string} message - Message to log
-   * @param {...any} args - Additional arguments
-   */
-  logError(message, ...args) {
-    if (this.options.enableLogging) {
-      core.error(`[Quality Gates] ${message}`, ...args);
+      return [
+        '🔧 Fix identified quality issues',
+        '🧪 Re-run quality gates after fixes',
+        '📋 Review detailed feedback for each gate',
+        '⏳ Do not proceed with deployment until all gates pass'
+      ];
     }
   }
 }

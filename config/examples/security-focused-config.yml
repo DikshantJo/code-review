@@ -1,0 +1,1127 @@
+# Example: Security-Focused Configuration
+# Use case: High-security environments, compliance requirements, sensitive projects
+# Best for: Financial, healthcare, government, defense, security-critical applications
+# Last updated: December 19, 2024
+
+# Security-focused configuration
+environment: 'production'
+log_level: 'warn'
+debug_mode: false
+security_mode: 'high'
+
+# AI Review settings - security optimized
+ai:
+  model: 'gpt-4-turbo-preview'
+  max_tokens: 6000
+  temperature: 0.01  # Very low temperature for consistent security analysis
+  timeout_seconds: 180
+  retry_attempts: 2
+  retry_delay_seconds: 10
+  
+  # Security-specific AI settings
+  rate_limiting:
+    requests_per_minute: 15
+    tokens_per_minute: 75000
+    cooldown_minutes: 15
+  
+  # Model fallbacks for security
+  fallback_models:
+    - 'gpt-4'
+    - 'gpt-3.5-turbo'
+  
+  # Enhanced security quality checks
+  quality_checks:
+    validate_responses: true
+    check_response_length: true
+    validate_json_responses: true
+    max_response_tokens: 5000
+    security_validation: true
+    content_filtering: true
+  
+  # Security-focused prompts
+  security_prompts:
+    enabled: true
+    focus_areas:
+      - 'vulnerability_detection'
+      - 'security_best_practices'
+      - 'compliance_checking'
+      - 'data_protection'
+      - 'authentication_security'
+      - 'authorization_security'
+      - 'input_validation'
+      - 'output_encoding'
+      - 'cryptographic_implementation'
+      - 'secure_communication'
+
+# File filtering - security-focused setup
+files:
+  include_patterns:
+    # Security-critical file types
+    - '**/*.js'
+    - '**/*.ts'
+    - '**/*.tsx'
+    - '**/*.jsx'
+    - '**/*.py'
+    - '**/*.java'
+    - '**/*.cs'
+    - '**/*.go'
+    - '**/*.rs'
+    - '**/*.php'
+    - '**/*.rb'
+    - '**/*.scala'
+    - '**/*.kt'
+    - '**/*.swift'
+    - '**/*.m'
+    - '**/*.cpp'
+    - '**/*.c'
+    - '**/*.h'
+    - '**/*.hpp'
+    
+    # Security configuration files
+    - '**/*.yml'
+    - '**/*.yaml'
+    - '**/*.json'
+    - '**/*.xml'
+    - '**/*.toml'
+    - '**/*.ini'
+    - '**/*.cfg'
+    - '**/*.conf'
+    - '**/*.env*'
+    - '**/*.properties'
+    
+    # Security documentation
+    - '**/*.md'
+    - '**/*.rst'
+    - '**/*.txt'
+    
+    # Infrastructure and deployment
+    - '**/Dockerfile*'
+    - '**/*.dockerfile'
+    - '**/*.sh'
+    - '**/*.ps1'
+    - '**/*.bat'
+    - '**/*.sql'
+    - '**/*.graphql'
+    - '**/*.proto'
+    - '**/*.tf'
+    - '**/*.hcl'
+    - '**/*.yaml'
+    - '**/*.yml'
+  
+  exclude_patterns:
+    # Build artifacts
+    - '**/node_modules/**'
+    - '**/dist/**'
+    - '**/build/**'
+    - '**/target/**'
+    - '**/bin/**'
+    - '**/obj/**'
+    - '**/.gradle/**'
+    - '**/.mvn/**'
+    - '**/venv/**'
+    - '**/env/**'
+    - '**/.venv/**'
+    - '**/.env/**'
+    
+    # Generated files
+    - '**/*.min.js'
+    - '**/*.bundle.js'
+    - '**/*.chunk.js'
+    - '**/*.generated.*'
+    - '**/*.auto.*'
+    
+    # Version control
+    - '**/.git/**'
+    - '**/.svn/**'
+    - '**/.hg/**'
+    
+    # Dependencies
+    - '**/vendor/**'
+    - '**/packages/**'
+    - '**/libs/**'
+    
+    # IDE and editor files
+    - '**/.vscode/**'
+    - '**/.idea/**'
+    - '**/*.sublime-*'
+    - '**/.emacs.d/**'
+    
+    # OS files
+    - '**/.DS_Store'
+    - '**/Thumbs.db'
+    - '**/*.tmp'
+    - '**/*.temp'
+    - '**/*.log'
+    - '**/*.cache'
+    
+    # Security sensitive - NEVER scan these
+    - '**/*.key'
+    - '**/*.pem'
+    - '**/*.p12'
+    - '**/*.pfx'
+    - '**/*.crt'
+    - '**/*.cer'
+    - '**/*.der'
+    - '**/*.p7b'
+    - '**/*.p7c'
+    - '**/*.p8'
+    - '**/*.jks'
+    - '**/*.keystore'
+    - '**/*.truststore'
+    - '**/*.bks'
+    - '**/*.pem'
+    - '**/*.crt'
+    - '**/*.cer'
+    - '**/*.der'
+    - '**/*.p7b'
+    - '**/*.p7c'
+    - '**/*.p8'
+    - '**/*.p12'
+    - '**/*.pfx'
+    - '**/*.jks'
+    - '**/*.keystore'
+    - '**/*.truststore'
+    - '**/*.bks'
+  
+  # Security-focused file limits
+  max_file_size_mb: 1
+  max_files_per_review: 100
+  max_total_size_mb: 25
+  
+  # Security file prioritization
+  priority_patterns:
+    critical:
+      - '**/auth/**'
+      - '**/security/**'
+      - '**/crypto/**'
+      - '**/encryption/**'
+      - '**/authentication/**'
+      - '**/authorization/**'
+      - '**/validation/**'
+      - '**/sanitization/**'
+      - '**/middleware/**'
+      - '**/filters/**'
+    high:
+      - '**/src/**'
+      - '**/app/**'
+      - '**/lib/**'
+      - '**/core/**'
+      - '**/main/**'
+      - '**/api/**'
+      - '**/controllers/**'
+      - '**/services/**'
+      - '**/models/**'
+    medium:
+      - '**/tests/**'
+      - '**/spec/**'
+      - '**/test/**'
+      - '**/docs/**'
+      - '**/config/**'
+    low:
+      - '**/examples/**'
+      - '**/samples/**'
+      - '**/demos/**'
+      - '**/templates/**'
+
+# Review settings - security-focused quality gates
+review:
+  quality_gates:
+    min_score: 0.9  # Higher threshold for security
+    max_issues: 10
+    max_critical_issues: 0  # Zero tolerance for critical issues
+    max_high_issues: 2
+    max_security_issues: 0  # Zero tolerance for security issues
+    block_on_critical: true
+    block_on_security: true
+    block_on_high: true  # Block on high issues too
+    require_manual_review: true  # Always require manual review
+    
+    # Security-specific gates
+    security_score_threshold: 0.95
+    performance_score_threshold: 0.85
+    maintainability_score_threshold: 0.85
+    test_coverage_threshold: 0.8
+    compliance_score_threshold: 0.9
+    
+    # Security compliance checks
+    compliance:
+      enabled: true
+      standards:
+        - 'OWASP_TOP_10'
+        - 'CWE_TOP_25'
+        - 'SANS_TOP_25'
+        - 'NIST_CYBERSECURITY_FRAMEWORK'
+        - 'ISO_27001'
+        - 'SOC_2'
+        - 'PCI_DSS'
+        - 'HIPAA'
+        - 'GDPR'
+        - 'SOX'
+      
+      # Compliance thresholds
+      thresholds:
+        OWASP_TOP_10: 0.95
+        CWE_TOP_25: 0.95
+        SANS_TOP_25: 0.95
+        NIST_CYBERSECURITY_FRAMEWORK: 0.9
+        ISO_27001: 0.9
+        SOC_2: 0.9
+        PCI_DSS: 0.95
+        HIPAA: 0.95
+        GDPR: 0.9
+        SOX: 0.9
+  
+  auto_fix:
+    enabled: false  # Disabled for security - manual review required
+    max_changes: 0
+    require_approval: true
+    
+    # Security auto-fix settings (if enabled)
+    allowed_fix_types: []  # No auto-fixes for security
+    
+    blocked_fix_types:
+      - 'security'
+      - 'performance'
+      - 'architecture'
+      - 'business_logic'
+      - 'api_changes'
+      - 'authentication'
+      - 'authorization'
+      - 'validation'
+      - 'encryption'
+      - 'cryptography'
+  
+  # Security review settings
+  parallel_reviews: false  # Sequential for security
+  max_parallel_reviews: 1
+  review_timeout_minutes: 60
+  retry_failed_reviews: false  # No retries for security
+  
+  # Security scanning
+  security_scanning:
+    enabled: true
+    scan_types:
+      - 'vulnerability_scan'
+      - 'dependency_scan'
+      - 'secret_scan'
+      - 'license_scan'
+      - 'malware_scan'
+      - 'code_quality_scan'
+    
+    # Security scan settings
+    settings:
+      vulnerability_scan:
+        enabled: true
+        severity_threshold: 'medium'
+        cve_database: 'latest'
+        update_frequency_hours: 24
+      
+      dependency_scan:
+        enabled: true
+        check_vulnerabilities: true
+        check_licenses: true
+        check_updates: true
+        auto_update: false
+      
+      secret_scan:
+        enabled: true
+        patterns:
+          - 'api_key'
+          - 'secret'
+          - 'password'
+          - 'token'
+          - 'private_key'
+          - 'certificate'
+        block_on_secret: true
+      
+      license_scan:
+        enabled: true
+        allowed_licenses:
+          - 'MIT'
+          - 'Apache-2.0'
+          - 'BSD-3-Clause'
+          - 'BSD-2-Clause'
+          - 'ISC'
+          - 'Unlicense'
+        blocked_licenses:
+          - 'GPL-2.0'
+          - 'GPL-3.0'
+          - 'AGPL-3.0'
+          - 'LGPL-2.1'
+          - 'LGPL-3.0'
+
+# Email notifications - security-focused setup
+notifications:
+  email:
+    enabled: true
+    
+    # Security SMTP Configuration
+    smtp_host: ${SMTP_HOST}
+    smtp_port: ${SMTP_PORT:-587}
+    smtp_secure: ${SMTP_SECURE:-true}
+    smtp_user: ${SMTP_USER}
+    smtp_pass: ${SMTP_PASS}
+    smtp_timeout: 30000
+    
+    # Security email addresses
+    from_email: ${EMAIL_FROM:-security-review@company.com}
+    reply_to: ${EMAIL_REPLY_TO:-security-team@company.com}
+    to_emails: ${SECURITY_EMAIL_TO}
+    cc_emails: ${SECURITY_CC_EMAILS:-[]}
+    bcc_emails: ${SECURITY_BCC_EMAILS:-[]}
+    
+    # Security notification triggers
+    triggers:
+      service_downtime: true
+      review_failure: true
+      quality_gate_failure: true
+      security_issues: true
+      performance_issues: true
+      critical_issues: true
+      review_timeout: true
+      api_rate_limit: true
+      cost_threshold: true
+      compliance_violation: true
+      vulnerability_detected: true
+      secret_detected: true
+      license_violation: true
+    
+    # Security email templates
+    templates:
+      subjects:
+        review_failure: "[SECURITY CRITICAL] Review Failed - ${repository}:${branch}"
+        quality_gate: "[SECURITY BLOCKED] Quality Gate Failed - ${repository}:${branch}"
+        security: "[SECURITY ALERT] Critical Security Issue - ${repository}:${branch}"
+        performance: "[SECURITY WARNING] Performance Issue - ${repository}:${branch}"
+        timeout: "[SECURITY TIMEOUT] Review Timeout - ${repository}:${branch}"
+        cost: "[SECURITY COST] Review Cost Alert - ${repository}:${branch}"
+        compliance: "[COMPLIANCE VIOLATION] Compliance Issue - ${repository}:${branch}"
+        vulnerability: "[VULNERABILITY] Security Vulnerability - ${repository}:${branch}"
+        secret: "[SECRET DETECTED] Secret in Code - ${repository}:${branch}"
+        license: "[LICENSE VIOLATION] License Issue - ${repository}:${branch}"
+      
+      bodies:
+        security: |
+          <h2>🔒 SECURITY ALERT: Critical Security Issue Detected</h2>
+          <div style="background-color: #fff3cd; border: 2px solid #ffc107; padding: 15px; border-radius: 5px;">
+            <p><strong>Repository:</strong> ${repository}</p>
+            <p><strong>Branch:</strong> ${branch}</p>
+            <p><strong>File:</strong> ${file_path}</p>
+            <p><strong>Issue Type:</strong> <span style="color: #dc3545;">${issue_type}</span></p>
+            <p><strong>Severity:</strong> <span style="color: #dc3545;">${severity}</span></p>
+            <p><strong>Description:</strong> ${description}</p>
+            <p><strong>CVE Reference:</strong> ${cve_reference || 'N/A'}</p>
+            <p><strong>OWASP Category:</strong> ${owasp_category || 'N/A'}</p>
+            
+            <h3>🔒 SECURITY IMPACT</h3>
+            <p>This issue has been identified as a potential security vulnerability.</p>
+            <p><strong>Immediate Actions:</strong></p>
+            <ul>
+              <li>Review the identified security issue</li>
+              <li>Assess the potential impact</li>
+              <li>Implement security fixes</li>
+              <li>Contact the security team immediately</li>
+              <li>Consider incident response procedures</li>
+            </ul>
+            
+            <h3>🔒 COMPLIANCE IMPACT</h3>
+            <p>This issue may impact compliance with:</p>
+            <ul>
+              <li>Security standards (OWASP, CWE, SANS)</li>
+              <li>Industry regulations (PCI DSS, HIPAA, SOX)</li>
+              <li>Company security policies</li>
+            </ul>
+          </div>
+        
+        compliance: |
+          <h2>⚠️ COMPLIANCE VIOLATION: Security Compliance Issue</h2>
+          <div style="background-color: #f8d7da; border: 2px solid #dc3545; padding: 15px; border-radius: 5px;">
+            <p><strong>Repository:</strong> ${repository}</p>
+            <p><strong>Branch:</strong> ${branch}</p>
+            <p><strong>Compliance Standard:</strong> ${compliance_standard}</p>
+            <p><strong>Violation Type:</strong> ${violation_type}</p>
+            <p><strong>Severity:</strong> <span style="color: #dc3545;">${severity}</span></p>
+            <p><strong>Description:</strong> ${description}</p>
+            
+            <h3>⚠️ COMPLIANCE IMPACT</h3>
+            <p>This issue violates compliance requirements and may result in:</p>
+            <ul>
+              <li>Regulatory penalties</li>
+              <li>Audit failures</li>
+              <li>Legal consequences</li>
+              <li>Reputation damage</li>
+            </ul>
+            
+            <p><strong>Required Actions:</strong></p>
+            <ul>
+              <li>Immediate remediation</li>
+              <li>Compliance team notification</li>
+              <li>Documentation update</li>
+              <li>Process improvement</li>
+            </ul>
+          </div>
+    
+    # Security rate limiting
+    rate_limiting:
+      max_per_hour: 30
+      max_per_day: 100
+      cooldown_minutes: 30
+      burst_limit: 5
+    
+    # Security email formatting
+    formatting:
+      html_enabled: true
+      css_inline: true
+      responsive_design: true
+      dark_mode_support: false
+      accessibility: true
+    
+    # Enhanced security email security
+    security:
+      dkim_enabled: true
+      spf_enabled: true
+      dmarc_enabled: true
+      encryption_required: true
+      attachment_scanning: true
+      content_filtering: true
+      malware_scanning: true
+    
+    # Security email logging
+    logging:
+      log_all_emails: true
+      log_email_content: false
+      log_recipients: true
+      log_delivery_status: true
+      retention_days: 365  # Longer retention for security
+
+# Issue creation - security-focused setup
+issue_creation:
+  enabled: true
+  
+  # Security triggers
+  triggers:
+    review_failure: true
+    review_passed: false
+    severity_threshold: 'low'  # Create issues for all security issues
+    quality_gate_failure: true
+    security_issues: true
+    performance_issues: true
+    cost_threshold: true
+    compliance_violation: true
+    vulnerability_detected: true
+    secret_detected: true
+    license_violation: true
+  
+  # Security issue creation behavior
+  behavior:
+    strategy: 'per_issue'  # Individual issues for security
+    max_issues_per_review: 100
+    min_severity: 'low'
+    group_similar: false  # No grouping for security
+    deduplicate: true
+    auto_assign: true
+    auto_label: true
+    auto_milestone: true
+    
+    # Security grouping settings
+    grouping:
+      enabled: false  # No grouping for security
+      max_group_size: 1
+      group_by_type: false
+      group_by_severity: false
+      group_by_file: false
+      group_by_author: false
+    
+    # Security deduplication
+    deduplication:
+      enabled: true
+      similarity_threshold: 0.9  # Higher threshold for security
+      check_across_repos: true
+      check_across_branches: true
+      max_history_days: 365  # Longer history for security
+
+# GitHub integration - security-focused setup
+github:
+  # Security issue creation
+  create_issues: true
+  update_issues: true
+  add_comments: true
+  add_labels: true
+  add_milestones: true
+  add_assignees: true
+  
+  # Security repository settings
+  repository: ${GITHUB_REPOSITORY}
+  token: ${GITHUB_TOKEN}
+  api_version: '2022-11-28'
+  
+  # Security GitHub settings
+  rate_limit_handling: true
+  retry_on_failure: false  # No retries for security
+  max_retries: 0
+  retry_delay_seconds: 0
+  
+  # Security issue templates
+  issue_templates:
+    enabled: true
+    template_path: './.github/ISSUE_TEMPLATE/'
+    default_template: 'security-issue.md'
+    
+    # Security template variables
+    variables:
+      repository: ${GITHUB_REPOSITORY}
+      branch: ${GITHUB_REF_NAME}
+      commit: ${GITHUB_SHA}
+      author: ${GITHUB_ACTOR}
+      workflow: ${GITHUB_WORKFLOW}
+      run_id: ${GITHUB_RUN_ID}
+      run_number: ${GITHUB_RUN_NUMBER}
+      security_level: ${security_level}
+      compliance_impact: ${compliance_impact}
+      remediation_priority: ${remediation_priority}
+  
+  # Security issue management
+  issue_management:
+    auto_close: false  # Never auto-close security issues
+    auto_close_days: 0
+    auto_close_conditions: []
+    
+    # Security issue lifecycle
+    lifecycle:
+      stages:
+        - 'new'
+        - 'investigating'
+        - 'confirmed'
+        - 'in_remediation'
+        - 'testing'
+        - 'verified'
+        - 'closed'
+      
+      auto_transitions:
+        new_to_investigating: 'assigned'
+        investigating_to_confirmed: 'labeled:security'
+        confirmed_to_in_remediation: 'labeled:critical'
+        in_remediation_to_testing: 'labeled:ready-for-testing'
+        testing_to_verified: 'labeled:tested'
+        verified_to_closed: 'manual_review_required'
+
+# Logging - security-focused setup
+logging:
+  level: 'warn'
+  
+  # Security file logging
+  file_logging:
+    enabled: true
+    file_path: './logs/security-review.log'
+    max_size: '50MB'
+    max_files: 20
+    compress_old: true
+    retention_days: 365  # Longer retention for security
+  
+  # Security structured logging
+  structured: true
+  json_format: true
+  
+  # Security logging settings
+  log_creation: true
+  log_errors: true
+  log_warnings: true
+  log_info: false
+  log_debug: false
+  
+  # Security log rotation
+  rotation:
+    enabled: true
+    max_size: '50MB'
+    max_files: 20
+    compress: true
+    retention_days: 365
+  
+  # Security log aggregation
+  aggregation:
+    enabled: true
+    batch_size: 50
+    flush_interval_seconds: 15
+    max_queue_size: 500
+  
+  # Security log monitoring
+  monitoring:
+    enabled: true
+    metrics:
+      - 'error_rate'
+      - 'response_time'
+      - 'throughput'
+      - 'success_rate'
+      - 'security_issues'
+      - 'compliance_violations'
+      - 'vulnerabilities'
+      - 'secrets_detected'
+    alerts:
+      error_rate_threshold: 0.02  # Lower threshold for security
+      response_time_threshold: 20
+      throughput_threshold: 50
+      security_issues_threshold: 0
+      compliance_violations_threshold: 0
+
+# Performance - security-focused settings
+performance:
+  # Security rate limiting
+  rate_limiting:
+    enabled: true
+    max_requests_per_minute: 20
+    max_requests_per_hour: 500
+    cooldown_minutes: 20
+    burst_limit: 10
+  
+  # Security caching
+  caching:
+    enabled: true
+    cache_duration_minutes: 30
+    max_cache_size: 500
+    cache_cleanup_interval_minutes: 15
+    
+    # Security cache strategies
+    strategies:
+      file_metadata: 60
+      review_results: 30
+      ai_responses: 15
+      user_preferences: 720
+  
+  # Security optimization
+  optimization:
+    parallel_processing: false  # Sequential for security
+    max_workers: 5
+    worker_timeout_seconds: 600
+    memory_limit_mb: 1024
+    
+    # Security performance monitoring
+    monitoring:
+      enabled: true
+      metrics:
+        - 'response_time'
+        - 'memory_usage'
+        - 'cpu_usage'
+        - 'throughput'
+        - 'error_rate'
+        - 'security_scan_time'
+        - 'vulnerability_scan_time'
+      thresholds:
+        response_time_ms: 3000
+        memory_usage_mb: 768
+        cpu_usage_percent: 70
+        error_rate_percent: 2
+
+# Security - enhanced security settings
+security:
+  # Enhanced authentication
+  authentication:
+    enabled: true
+    method: 'token'
+    token_expiry_hours: 12  # Shorter expiry for security
+    refresh_token_enabled: true
+    
+    # Enhanced rate limiting for auth
+    auth_rate_limit:
+      max_attempts_per_hour: 5
+      lockout_duration_minutes: 60
+  
+  # Enhanced authorization
+  authorization:
+    enabled: true
+    role_based: true
+    default_role: 'viewer'  # More restrictive default
+    
+    # Enhanced role permissions
+    roles:
+      admin:
+        - 'all'
+      security_admin:
+        - 'read'
+        - 'review'
+        - 'comment'
+        - 'security_override'
+        - 'compliance_override'
+      reviewer:
+        - 'read'
+        - 'review'
+        - 'comment'
+      developer:
+        - 'read'
+        - 'comment'
+      viewer:
+        - 'read'
+  
+  # Enhanced data protection
+  data_protection:
+    encryption_at_rest: true
+    encryption_in_transit: true
+    data_retention_days: 365  # Longer retention for security
+    data_anonymization: true
+    data_encryption: true
+    
+    # Enhanced PII handling
+    pii_detection: true
+    pii_redaction: true
+    pii_logging: false
+    pii_encryption: true
+    
+    # Data classification
+    data_classification:
+      enabled: true
+      levels:
+        - 'public'
+        - 'internal'
+        - 'confidential'
+        - 'restricted'
+        - 'secret'
+        - 'top_secret'
+  
+  # Enhanced audit logging
+  audit:
+    enabled: true
+    log_all_actions: true
+    log_user_actions: true
+    log_system_actions: true
+    retention_days: 365
+    immutable_logs: true
+    log_integrity: true
+    
+    # Security audit events
+    security_events:
+      - 'authentication'
+      - 'authorization'
+      - 'data_access'
+      - 'configuration_changes'
+      - 'security_incidents'
+      - 'compliance_violations'
+      - 'vulnerability_detections'
+      - 'secret_detections'
+
+# Monitoring and alerting - security-focused setup
+monitoring:
+  # Security health checks
+  health_checks:
+    enabled: true
+    interval_seconds: 15  # More frequent for security
+    timeout_seconds: 5
+    
+    # Security health check endpoints
+    endpoints:
+      - '/health'
+      - '/ready'
+      - '/live'
+      - '/security'
+      - '/compliance'
+    
+    # Security health check criteria
+    criteria:
+      database: true
+      external_apis: true
+      file_system: true
+      memory_usage: true
+      cpu_usage: true
+      security_scanner: true
+      compliance_checker: true
+  
+  # Security metrics
+  metrics:
+    enabled: true
+    collection_interval_seconds: 30  # More frequent for security
+    
+    # Security metric types
+    types:
+      - 'counter'
+      - 'gauge'
+      - 'histogram'
+      - 'summary'
+    
+    # Security key metrics
+    key_metrics:
+      - 'review_requests_total'
+      - 'review_duration_seconds'
+      - 'review_success_rate'
+      - 'ai_response_time_seconds'
+      - 'issues_created_total'
+      - 'email_sent_total'
+      - 'error_rate'
+      - 'memory_usage_bytes'
+      - 'cpu_usage_percent'
+      - 'security_issues_total'
+      - 'compliance_violations_total'
+      - 'vulnerabilities_detected_total'
+      - 'secrets_detected_total'
+      - 'license_violations_total'
+  
+  # Security alerting
+  alerting:
+    enabled: true
+    
+    # Security alert channels
+    channels:
+      email: true
+      slack: ${SECURITY_SLACK_WEBHOOK_URL}
+      pagerduty: ${SECURITY_PAGERDUTY_API_KEY}
+      teams: ${SECURITY_TEAMS_WEBHOOK_URL}
+      sms: ${SECURITY_SMS_GATEWAY}
+    
+    # Security alert rules
+    rules:
+      security_issue_detected:
+        condition: 'security_issues > 0'
+        severity: 'critical'
+        cooldown_minutes: 0  # No cooldown for security
+        
+      compliance_violation:
+        condition: 'compliance_violations > 0'
+        severity: 'critical'
+        cooldown_minutes: 0
+        
+      vulnerability_detected:
+        condition: 'vulnerabilities_detected > 0'
+        severity: 'critical'
+        cooldown_minutes: 0
+        
+      secret_detected:
+        condition: 'secrets_detected > 0'
+        severity: 'critical'
+        cooldown_minutes: 0
+        
+      high_error_rate:
+        condition: 'error_rate > 0.05'
+        severity: 'warning'
+        cooldown_minutes: 10
+        
+      service_down:
+        condition: 'health_check_failed'
+        severity: 'critical'
+        cooldown_minutes: 1
+
+# Environment-specific overrides - security
+environments:
+  development:
+    log_level: 'debug'
+    debug_mode: true
+    notifications:
+      email:
+        enabled: false
+    issue_creation:
+      enabled: false
+    performance:
+      rate_limiting:
+        max_requests_per_minute: 5
+    monitoring:
+      health_checks:
+        interval_seconds: 30
+    security:
+      authentication:
+        token_expiry_hours: 24
+      data_protection:
+        data_retention_days: 30
+  
+  staging:
+    log_level: 'info'
+    debug_mode: false
+    notifications:
+      email:
+        enabled: true
+        to_emails: ${STAGING_SECURITY_EMAIL_TO}
+    issue_creation:
+      enabled: true
+      behavior:
+        strategy: 'per_issue'
+        group_similar: false
+    performance:
+      rate_limiting:
+        max_requests_per_minute: 10
+    monitoring:
+      health_checks:
+        interval_seconds: 60
+    security:
+      authentication:
+        token_expiry_hours: 18
+      data_protection:
+        data_retention_days: 90
+  
+  production:
+    log_level: 'warn'
+    debug_mode: false
+    notifications:
+      email:
+        enabled: true
+        to_emails: ${PRODUCTION_SECURITY_EMAIL_TO}
+    issue_creation:
+      enabled: true
+      behavior:
+        strategy: 'per_issue'
+        group_similar: false
+    performance:
+      rate_limiting:
+        max_requests_per_minute: 20
+    monitoring:
+      health_checks:
+        interval_seconds: 15
+    security:
+      authentication:
+        token_expiry_hours: 12
+      data_protection:
+        data_retention_days: 365
+
+# Validation rules - security
+validation:
+  required_fields:
+    - environment
+    - ai.model
+    - notifications.email.smtp_host
+    - notifications.email.smtp_user
+    - notifications.email.smtp_pass
+    - github.token
+    - github.repository
+    - security_mode
+  
+  # Security validation rules
+  max_values:
+    max_files_per_review: 200
+    max_file_size_mb: 5
+    max_total_size_mb: 50
+    max_parallel_reviews: 5
+    max_workers: 10
+  
+  min_values:
+    max_files_per_review: 1
+    max_file_size_mb: 0.1
+    max_total_size_mb: 1
+    max_parallel_reviews: 1
+    max_workers: 1
+  
+  # Security format validation
+  format_validation:
+    email_format: true
+    url_format: true
+    file_path_format: true
+    severity_levels: true
+    compliance_standards: true
+  
+  # Enhanced security validation
+  security_validation:
+    check_secrets: true
+    check_credentials: true
+    validate_permissions: true
+    check_rate_limits: true
+    validate_security_config: true
+    check_compliance: true
+    validate_encryption: true
+
+# Configuration metadata - security
+metadata:
+  example_name: 'Security-Focused Configuration'
+  use_case: 'High-security environments, compliance requirements, sensitive projects'
+  target_audience: 'Financial, healthcare, government, defense, security-critical applications'
+  complexity: 'Advanced'
+  estimated_setup_time: '45-90 minutes'
+  version: '1.0.0'
+  last_updated: '2024-12-19'
+  author: 'AI Code Review System'
+  description: 'Security-focused configuration with enhanced security features and strict quality gates'
+  
+  # Required environment variables
+  required_env_vars:
+    - 'SECURITY_EMAIL_TO - Security team email addresses'
+    - 'SMTP_HOST - SMTP server hostname'
+    - 'SMTP_USER - SMTP username'
+    - 'SMTP_PASS - SMTP password'
+    - 'GITHUB_TOKEN - GitHub API token'
+    - 'OPENAI_API_KEY - OpenAI API key'
+    - 'GITHUB_REPOSITORY - GitHub repository (owner/repo)'
+  
+  # Optional environment variables
+  optional_env_vars:
+    - 'EMAIL_FROM - From email address (defaults to security-review@company.com)'
+    - 'EMAIL_REPLY_TO - Reply-to email address'
+    - 'SECURITY_CC_EMAILS - Security CC email addresses'
+    - 'SECURITY_BCC_EMAILS - Security BCC email addresses'
+    - 'SMTP_PORT - SMTP port (defaults to 587)'
+    - 'SMTP_SECURE - Use TLS (defaults to true)'
+    - 'SECURITY_SLACK_WEBHOOK_URL - Security Slack webhook for alerts'
+    - 'SECURITY_PAGERDUTY_API_KEY - Security PagerDuty API key for alerts'
+    - 'SECURITY_TEAMS_WEBHOOK_URL - Security Teams webhook for alerts'
+    - 'SECURITY_SMS_GATEWAY - Security SMS gateway for alerts'
+    - 'STAGING_SECURITY_EMAIL_TO - Staging environment security email recipients'
+    - 'PRODUCTION_SECURITY_EMAIL_TO - Production environment security email recipients'
+  
+  # Security setup commands
+  security_setup:
+    - 'Copy this file to ai-review-config.yml'
+    - 'Set all required security environment variables'
+    - 'Configure secure SMTP settings'
+    - 'Set up GitHub repository with security permissions'
+    - 'Configure security monitoring and alerting endpoints'
+    - 'Set up secure logging and log rotation'
+    - 'Configure enhanced security settings and roles'
+    - 'Test all security integrations'
+    - 'Run: npm run validate-security-config'
+    - 'Run: npm run test-security'
+    - 'Run: npm run start'
+  
+  # Security checklist
+  security_checklist:
+    - '✅ Security environment variables configured'
+    - '✅ Secure SMTP settings tested'
+    - '✅ GitHub security integration verified'
+    - '✅ Security monitoring endpoints configured'
+    - '✅ Secure logging and rotation set up'
+    - '✅ Enhanced security settings configured'
+    - '✅ Security rate limiting tested'
+    - '✅ Security health checks working'
+    - '✅ Security alerts configured and tested'
+    - '✅ Security performance benchmarks established'
+    - '✅ Security backup and recovery procedures documented'
+    - '✅ Security incident response plan ready'
+    - '✅ Compliance requirements documented'
+    - '✅ Security team contacts configured'
+    - '✅ Security escalation procedures documented'
+  
+  # Security maintenance
+  security_maintenance:
+    daily:
+      - 'Check security health status'
+      - 'Review security error logs'
+      - 'Monitor security metrics'
+      - 'Check for new vulnerabilities'
+    
+    weekly:
+      - 'Review and rotate security logs'
+      - 'Check security rate limit usage'
+      - 'Review security incident logs'
+      - 'Update security dependencies'
+      - 'Review compliance status'
+    
+    monthly:
+      - 'Security performance review'
+      - 'Security audit review'
+      - 'Security configuration review'
+      - 'Security backup verification'
+      - 'Compliance review'
+    
+    quarterly:
+      - 'Full security review'
+      - 'Security performance optimization'
+      - 'Security configuration optimization'
+      - 'Security disaster recovery test'
+      - 'Compliance audit'
+  
+  # Security troubleshooting
+  security_troubleshooting:
+    common_issues:
+      - 'Security issues not detected: Check security scanner configuration'
+      - 'Compliance violations: Review compliance standards and thresholds'
+      - 'High false positives: Adjust security detection sensitivity'
+      - 'Slow security scans: Review performance settings and resources'
+      - 'Security alerts not working: Check alerting configuration'
+    
+    escalation:
+      - 'Level 1: Check security logs and restart security services'
+      - 'Level 2: Review security configuration and dependencies'
+      - 'Level 3: Contact security team immediately'
+      - 'Level 4: Engage compliance team for compliance issues'
+      - 'Level 5: Activate incident response procedures'
+

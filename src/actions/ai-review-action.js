@@ -1213,6 +1213,655 @@ ${Object.entries(reviewResult.severityBreakdown || {}).map(([severity, count]) =
   }
 
   /**
+   * Comprehensive AI response logging for debugging and audit
+   * @param {Object} aiResponse - Raw AI response from OpenAI
+   * @param {Object} parsedResponse - Parsed and validated response
+   * @param {Object} context - Additional context information
+   */
+  async logAIResponseDetails(aiResponse, parsedResponse, context) {
+    try {
+      const logData = {
+        timestamp: new Date().toISOString(),
+        sessionId: context.sessionId,
+        repository: this.context.repository,
+        branch: context.branchInfo?.targetBranch,
+        environment: context.branchInfo?.branchType,
+        
+        // AI Model Information
+        aiModel: {
+          model: aiResponse.model || 'unknown',
+          version: aiResponse.model_version || 'unknown',
+          provider: 'openai'
+        },
+        
+        // Token Usage
+        tokenUsage: this.calculateEnhancedTokenAnalytics(aiResponse.usage, context),
+        
+        // Performance Metrics
+        performance: {
+          responseTime: context.responseTime,
+          responseSize: JSON.stringify(aiResponse).length,
+          filesProcessed: context.filesCount,
+          averageTimePerFile: context.filesCount > 0 ? context.responseTime / context.filesCount : 0
+        },
+        
+        // Response Quality
+        responseQuality: this.calculateEnhancedQualityMetrics(aiResponse, parsedResponse, context),
+        
+        // Content Analysis
+        contentAnalysis: {
+          responseType: this.detectResponseType(aiResponse),
+          hasCodeSuggestions: this.hasCodeSuggestions(aiResponse),
+          hasSecurityIssues: this.hasSecurityIssues(parsedResponse),
+          hasPerformanceIssues: this.hasPerformanceIssues(parsedResponse),
+          hasStyleIssues: this.hasStyleIssues(parsedResponse)
+        },
+        
+        // Error Information (if any)
+        errors: this.extractErrors(aiResponse, parsedResponse),
+        
+        // Raw Response Metadata
+        rawResponse: {
+          id: aiResponse.id || 'unknown',
+          object: aiResponse.object || 'unknown',
+          created: aiResponse.created || 'unknown',
+          finishReason: aiResponse.choices?.[0]?.finish_reason || 'unknown'
+        }
+      };
+      
+      // Log to audit logger
+      if (this.auditLogger) {
+        await this.auditLogger.logAIResponse(logData);
+      }
+      
+      // Log to console with structured format
+      core.info('📊 AI Response Analysis:');
+      core.info(`   Session: ${logData.sessionId}`);
+      core.info(`   Model: ${logData.aiModel.model} (${logData.tokenUsage.total} tokens)`);
+      core.info(`   Response Time: ${logData.performance.responseTime}ms`);
+      core.info(`   Quality Score: ${logData.responseQuality.qualityScore}`);
+      core.info(`   Issues Found: ${logData.responseQuality.issuesCount}`);
+      core.info(`   Response Type: ${logData.contentAnalysis.responseType}`);
+      
+      // Log detailed token breakdown
+      if (logData.tokenUsage.total > 0) {
+        core.info('💰 Token Usage Breakdown:');
+        core.info(`   Prompt: ${logData.tokenUsage.prompt} tokens`);
+        core.info(`   Completion: ${logData.tokenUsage.completion} tokens`);
+        core.info(`   Total: ${logData.tokenUsage.total} tokens`);
+        if (logData.tokenUsage.cost) {
+          core.info(`   Estimated Cost: $${logData.tokenUsage.cost.toFixed(4)}`);
+        }
+      }
+      
+      // Log content analysis
+      core.info('🔍 Content Analysis:');
+      core.info(`   Code Suggestions: ${logData.contentAnalysis.hasCodeSuggestions ? '✅' : '❌'}`);
+      core.info(`   Security Issues: ${logData.contentAnalysis.hasSecurityIssues ? '🚨' : '✅'}`);
+      core.info(`   Performance Issues: ${logData.contentAnalysis.hasPerformanceIssues ? '🐌' : '✅'}`);
+      core.info(`   Style Issues: ${logData.contentAnalysis.hasStyleIssues ? '🎨' : '✅'}`);
+      
+      // Log any errors or warnings
+      if (logData.errors.length > 0) {
+        core.warning('⚠️ AI Response Errors/Warnings:');
+        logData.errors.forEach((error, index) => {
+          core.warning(`   ${index + 1}. ${error.type}: ${error.message}`);
+        });
+      }
+      
+      // Store in session for later analysis
+      this.currentSessionData = {
+        ...this.currentSessionData,
+        aiResponseLog: logData
+      };
+      
+    } catch (error) {
+      core.warning(`Failed to log AI response details: ${error.message}`);
+      // Continue execution even if logging fails
+    }
+  }
+
+  /**
+   * Calculate estimated token cost based on OpenAI pricing
+   * @param {Object} usage - Token usage information
+   * @returns {number} Estimated cost in USD
+   */
+  calculateTokenCost(usage) {
+    if (!usage || !usage.total_tokens) return 0;
+    
+    // OpenAI GPT-4 pricing (approximate, may vary)
+    const costPer1kTokens = 0.03; // $0.03 per 1K tokens
+    return (usage.total_tokens / 1000) * costPer1kTokens;
+  }
+
+  /**
+   * Detect the type of AI response
+   * @param {Object} aiResponse - AI response object
+   * @returns {string} Response type
+   */
+  detectResponseType(aiResponse) {
+    const content = aiResponse.choices?.[0]?.message?.content || '';
+    
+    if (content.includes('security') || content.includes('vulnerability')) {
+      return 'security_review';
+    } else if (content.includes('performance') || content.includes('optimization')) {
+      return 'performance_review';
+    } else if (content.includes('style') || content.includes('formatting')) {
+      return 'style_review';
+    } else if (content.includes('bug') || content.includes('error')) {
+      return 'bug_detection';
+    } else if (content.includes('suggestion') || content.includes('improvement')) {
+      return 'improvement_suggestions';
+    } else {
+      return 'general_review';
+    }
+  }
+
+  /**
+   * Check if response contains code suggestions
+   * @param {Object} aiResponse - AI response object
+   * @returns {boolean} True if contains code suggestions
+   */
+  hasCodeSuggestions(aiResponse) {
+    const content = aiResponse.choices?.[0]?.message?.content || '';
+    return content.includes('```') || content.includes('suggest') || content.includes('example');
+  }
+
+  /**
+   * Check if response contains security issues
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {boolean} True if contains security issues
+   */
+  hasSecurityIssues(parsedResponse) {
+    if (!parsedResponse?.issues) return false;
+    return parsedResponse.issues.some(issue => 
+      issue.severity === 'critical' || 
+      issue.title.toLowerCase().includes('security') ||
+      issue.description.toLowerCase().includes('vulnerability')
+    );
+  }
+
+  /**
+   * Check if response contains performance issues
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {boolean} True if contains performance issues
+   */
+  hasPerformanceIssues(parsedResponse) {
+    if (!parsedResponse?.issues) return false;
+    return parsedResponse.issues.some(issue => 
+      issue.title.toLowerCase().includes('performance') ||
+      issue.title.toLowerCase().includes('slow') ||
+      issue.title.toLowerCase().includes('optimization')
+    );
+  }
+
+  /**
+   * Check if response contains style issues
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {boolean} True if contains style issues
+   */
+  hasStyleIssues(parsedResponse) {
+    if (!parsedResponse?.issues) return false;
+    return parsedResponse.issues.some(issue => 
+      issue.title.toLowerCase().includes('style') ||
+      issue.title.toLowerCase().includes('formatting') ||
+      issue.title.toLowerCase().includes('convention')
+    );
+  }
+
+  /**
+   * Extract errors and warnings from AI response
+   * @param {Object} aiResponse - Raw AI response
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {Array} Array of error objects
+   */
+  extractErrors(aiResponse, parsedResponse) {
+    const errors = [];
+    
+    // Check for API errors
+    if (aiResponse.error) {
+      errors.push({
+        type: 'api_error',
+        message: aiResponse.error.message || 'Unknown API error',
+        code: aiResponse.error.code || 'unknown'
+      });
+    }
+    
+    // Check for parsing errors
+    if (!parsedResponse) {
+      errors.push({
+        type: 'parsing_error',
+        message: 'Failed to parse AI response',
+        code: 'parse_failed'
+      });
+    }
+    
+    // Check for validation errors
+    if (parsedResponse?.validationErrors) {
+      parsedResponse.validationErrors.forEach(error => {
+        errors.push({
+          type: 'validation_error',
+          message: error.message || 'Validation failed',
+          field: error.field || 'unknown'
+        });
+      });
+    }
+    
+    // Check for finish reason issues
+    const finishReason = aiResponse.choices?.[0]?.finish_reason;
+    if (finishReason && finishReason !== 'stop') {
+      errors.push({
+        type: 'completion_warning',
+        message: `AI response may be incomplete (finish_reason: ${finishReason})`,
+        code: finishReason
+      });
+    }
+    
+    return errors;
+  }
+
+  /**
+   * Enhanced AI response quality metrics
+   * @param {Object} aiResponse - Raw AI response
+   * @param {Object} parsedResponse - Parsed response
+   * @param {Object} context - Review context
+   * @returns {Object} Quality metrics
+   */
+  calculateEnhancedQualityMetrics(aiResponse, parsedResponse, context) {
+    const metrics = {
+      timestamp: new Date().toISOString(),
+      sessionId: context.sessionId,
+      
+      // Basic quality indicators
+      isValid: !!parsedResponse,
+      hasIssues: parsedResponse?.issues?.length > 0,
+      issuesCount: parsedResponse?.issues?.length || 0,
+      passed: parsedResponse?.passed || false,
+      
+      // Enhanced quality scoring
+      qualityScore: this.calculateQualityScore(parsedResponse),
+      confidenceScore: this.calculateConfidenceScore(aiResponse, parsedResponse),
+      completenessScore: this.calculateCompletenessScore(aiResponse, parsedResponse),
+      relevanceScore: this.calculateRelevanceScore(aiResponse, context),
+      
+      // Issue severity distribution
+      severityBreakdown: this.calculateSeverityBreakdown(parsedResponse),
+      
+      // Code coverage metrics
+      codeCoverage: {
+        filesCovered: context.filesCount || 0,
+        linesCovered: context.totalLines || 0,
+        coveragePercentage: context.filesCount > 0 ? 
+          ((parsedResponse?.issues?.length || 0) / context.filesCount) * 100 : 0
+      },
+      
+      // Response characteristics
+      responseCharacteristics: {
+        hasCodeSuggestions: this.hasCodeSuggestions(aiResponse),
+        hasSecurityIssues: this.hasSecurityIssues(parsedResponse),
+        hasPerformanceIssues: this.hasPerformanceIssues(parsedResponse),
+        hasStyleIssues: this.hasStyleIssues(parsedResponse),
+        responseType: this.detectResponseType(aiResponse)
+      }
+    };
+    
+    return metrics;
+  }
+
+  /**
+   * Calculate confidence score for AI response
+   * @param {Object} aiResponse - Raw AI response
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {number} Confidence score (0-1)
+   */
+  calculateConfidenceScore(aiResponse, parsedResponse) {
+    let score = 0;
+    
+    // Base confidence from finish reason
+    const finishReason = aiResponse.choices?.[0]?.finish_reason;
+    if (finishReason === 'stop') score += 0.3;
+    else if (finishReason === 'length') score += 0.2;
+    else if (finishReason === 'content_filter') score += 0.1;
+    
+    // Confidence from response structure
+    if (parsedResponse?.issues && Array.isArray(parsedResponse.issues)) score += 0.2;
+    if (parsedResponse?.summary) score += 0.1;
+    if (parsedResponse?.recommendations) score += 0.1;
+    
+    // Confidence from content quality
+    const content = aiResponse.choices?.[0]?.message?.content || '';
+    if (content.length > 100) score += 0.1;
+    if (content.includes('```')) score += 0.1;
+    if (content.includes('severity') || content.includes('priority')) score += 0.1;
+    
+    return Math.min(score, 1);
+  }
+
+  /**
+   * Calculate completeness score for AI response
+   * @param {Object} aiResponse - Raw AI response
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {number} Completeness score (0-1)
+   */
+  calculateCompletenessScore(aiResponse, parsedResponse) {
+    let score = 0;
+    
+    // Check for required response components
+    if (parsedResponse?.issues) score += 0.3;
+    if (parsedResponse?.summary) score += 0.2;
+    if (parsedResponse?.recommendations) score += 0.2;
+    if (parsedResponse?.passed !== undefined) score += 0.1;
+    if (parsedResponse?.qualityScore !== undefined) score += 0.1;
+    
+    // Check for content completeness
+    const content = aiResponse.choices?.[0]?.message?.content || '';
+    if (content.length > 200) score += 0.1;
+    
+    return Math.min(score, 1);
+  }
+
+  /**
+   * Calculate relevance score for AI response
+   * @param {Object} aiResponse - Raw AI response
+   * @param {Object} context - Review context
+   * @returns {number} Relevance score (0-1)
+   */
+  calculateRelevanceScore(aiResponse, context) {
+    let score = 0;
+    
+    const content = aiResponse.choices?.[0]?.message?.content || '';
+    const fileTypes = context.fileTypes || [];
+    const branchType = context.branchInfo?.branchType || 'unknown';
+    
+    // Relevance to file types
+    if (fileTypes.includes('js') && content.includes('JavaScript')) score += 0.2;
+    if (fileTypes.includes('py') && content.includes('Python')) score += 0.2;
+    if (fileTypes.includes('java') && content.includes('Java')) score += 0.2;
+    
+    // Relevance to branch type
+    if (branchType === 'production' && content.includes('production')) score += 0.2;
+    if (branchType === 'development' && content.includes('development')) score += 0.2;
+    
+    // Relevance to review context
+    if (content.includes('security') || content.includes('vulnerability')) score += 0.2;
+    if (content.includes('performance') || content.includes('optimization')) score += 0.2;
+    
+    return Math.min(score, 1);
+  }
+
+  /**
+   * Calculate severity breakdown for issues
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {Object} Severity breakdown
+   */
+  calculateSeverityBreakdown(parsedResponse) {
+    const breakdown = {
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+      info: 0,
+      unknown: 0
+    };
+    
+    if (parsedResponse?.issues) {
+      parsedResponse.issues.forEach(issue => {
+        const severity = (issue.severity || 'unknown').toLowerCase();
+        if (breakdown.hasOwnProperty(severity)) {
+          breakdown[severity]++;
+        } else {
+          breakdown.unknown++;
+        }
+      });
+    }
+    
+    return breakdown;
+  }
+
+  /**
+   * Enhanced token usage analytics
+   * @param {Object} usage - Token usage from OpenAI
+   * @param {Object} context - Review context
+   * @returns {Object} Enhanced token analytics
+   */
+  calculateEnhancedTokenAnalytics(usage, context) {
+    if (!usage) return null;
+    
+    const analytics = {
+      // Basic token counts
+      promptTokens: usage.prompt_tokens || 0,
+      completionTokens: usage.completion_tokens || 0,
+      totalTokens: usage.total_tokens || 0,
+      
+      // Cost analysis
+      costUSD: this.calculateTokenCost(usage),
+      costPerFile: context.filesCount > 0 ? this.calculateTokenCost(usage) / context.filesCount : 0,
+      costPerLine: context.totalLines > 0 ? this.calculateTokenCost(usage) / context.totalLines : 0,
+      
+      // Efficiency metrics
+      tokensPerFile: context.filesCount > 0 ? usage.total_tokens / context.filesCount : 0,
+      tokensPerLine: context.totalLines > 0 ? usage.total_tokens / context.totalLines : 0,
+      promptEfficiency: usage.prompt_tokens > 0 ? usage.completion_tokens / usage.prompt_tokens : 0,
+      
+      // Cost optimization insights
+      optimization: {
+        isEfficient: usage.completion_tokens > 0 && usage.prompt_tokens > 0 ? 
+          (usage.completion_tokens / usage.prompt_tokens) > 0.5 : false,
+        costCategory: this.categorizeTokenCost(this.calculateTokenCost(usage)),
+        recommendations: this.generateTokenOptimizationRecommendations(usage, context)
+      }
+    };
+    
+    return analytics;
+  }
+
+  /**
+   * Categorize token cost for analysis
+   * @param {number} costUSD - Cost in USD
+   * @returns {string} Cost category
+   */
+  categorizeTokenCost(costUSD) {
+    if (costUSD < 0.01) return 'very_low';
+    if (costUSD < 0.05) return 'low';
+    if (costUSD < 0.20) return 'medium';
+    if (costUSD < 0.50) return 'high';
+    return 'very_high';
+  }
+
+  /**
+   * Generate token optimization recommendations
+   * @param {Object} usage - Token usage
+   * @param {Object} context - Review context
+   * @returns {Array} Optimization recommendations
+   */
+  generateTokenOptimizationRecommendations(usage, context) {
+    const recommendations = [];
+    
+    if (!usage) return recommendations;
+    
+    // Check prompt efficiency
+    if (usage.prompt_tokens > 0 && usage.completion_tokens > 0) {
+      const efficiency = usage.completion_tokens / usage.prompt_tokens;
+      if (efficiency < 0.3) {
+        recommendations.push('Consider optimizing prompts to get more output per input token');
+      }
+    }
+    
+    // Check total cost
+    const cost = this.calculateTokenCost(usage);
+    if (cost > 0.50) {
+      recommendations.push('Review cost is high - consider using smaller models or optimizing prompts');
+    }
+    
+    // Check per-file cost
+    if (context.filesCount > 0) {
+      const costPerFile = cost / context.filesCount;
+      if (costPerFile > 0.10) {
+        recommendations.push('High cost per file - consider batching similar files together');
+      }
+    }
+    
+    // Check token usage patterns
+    if (usage.prompt_tokens > 8000) {
+      recommendations.push('Large prompt size - consider splitting reviews or using more focused prompts');
+    }
+    
+    return recommendations;
+  }
+
+  /**
+   * Comprehensive response pattern analysis
+   * @param {Object} aiResponse - Raw AI response
+   * @param {Object} parsedResponse - Parsed response
+   * @param {Object} context - Review context
+   * @returns {Object} Pattern analysis
+   */
+  analyzeResponsePatterns(aiResponse, parsedResponse, context) {
+    const patterns = {
+      timestamp: new Date().toISOString(),
+      sessionId: context.sessionId,
+      
+      // Response structure patterns
+      structure: {
+        hasIssues: !!parsedResponse?.issues,
+        hasSummary: !!parsedResponse?.summary,
+        hasRecommendations: !!parsedResponse?.recommendations,
+        hasQualityScore: parsedResponse?.qualityScore !== undefined,
+        issueCount: parsedResponse?.issues?.length || 0
+      },
+      
+      // Content patterns
+      content: {
+        responseType: this.detectResponseType(aiResponse),
+        hasCodeSuggestions: this.hasCodeSuggestions(aiResponse),
+        hasSecurityFocus: this.hasSecurityIssues(parsedResponse),
+        hasPerformanceFocus: this.hasPerformanceIssues(parsedResponse),
+        hasStyleFocus: this.hasStyleIssues(parsedResponse),
+        contentLength: aiResponse.choices?.[0]?.message?.content?.length || 0
+      },
+      
+      // Quality patterns
+      quality: {
+        overallQuality: parsedResponse?.qualityScore || 0,
+        confidenceLevel: this.calculateConfidenceScore(aiResponse, parsedResponse),
+        completenessLevel: this.calculateCompletenessScore(aiResponse, parsedResponse),
+        relevanceLevel: this.calculateRelevanceScore(aiResponse, context)
+      },
+      
+      // Performance patterns
+      performance: {
+        responseTime: context.responseTime,
+        tokensUsed: aiResponse.usage?.total_tokens || 0,
+        costIncurred: this.calculateTokenCost(aiResponse.usage),
+        efficiency: aiResponse.usage?.total_tokens > 0 ? 
+          context.responseTime / aiResponse.usage.total_tokens : 0
+      },
+      
+      // Issue patterns
+      issues: {
+        severityDistribution: this.calculateSeverityBreakdown(parsedResponse),
+        categoryDistribution: this.categorizeIssuesByType(parsedResponse),
+        commonPatterns: this.identifyCommonIssuePatterns(parsedResponse)
+      }
+    };
+    
+    return patterns;
+  }
+
+  /**
+   * Categorize issues by type
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {Object} Issue category distribution
+   */
+  categorizeIssuesByType(parsedResponse) {
+    const categories = {
+      security: 0,
+      performance: 0,
+      style: 0,
+      bug: 0,
+      documentation: 0,
+      architecture: 0,
+      testing: 0,
+      other: 0
+    };
+    
+    if (parsedResponse?.issues) {
+      parsedResponse.issues.forEach(issue => {
+        const title = (issue.title || '').toLowerCase();
+        const description = (issue.description || '').toLowerCase();
+        
+        if (title.includes('security') || description.includes('security') || 
+            title.includes('vulnerability') || description.includes('vulnerability')) {
+          categories.security++;
+        } else if (title.includes('performance') || description.includes('performance') ||
+                   title.includes('slow') || description.includes('slow')) {
+          categories.performance++;
+        } else if (title.includes('style') || description.includes('style') ||
+                   title.includes('formatting') || description.includes('formatting')) {
+          categories.style++;
+        } else if (title.includes('bug') || description.includes('bug') ||
+                   title.includes('error') || description.includes('error')) {
+          categories.bug++;
+        } else if (title.includes('documentation') || description.includes('documentation') ||
+                   title.includes('comment') || description.includes('comment')) {
+          categories.documentation++;
+        } else if (title.includes('architecture') || description.includes('architecture') ||
+                   title.includes('design') || description.includes('design')) {
+          categories.architecture++;
+        } else if (title.includes('test') || description.includes('test') ||
+                   title.includes('coverage') || description.includes('coverage')) {
+          categories.testing++;
+        } else {
+          categories.other++;
+        }
+      });
+    }
+    
+    return categories;
+  }
+
+  /**
+   * Identify common issue patterns
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {Array} Common patterns
+   */
+  identifyCommonIssuePatterns(parsedResponse) {
+    const patterns = [];
+    
+    if (!parsedResponse?.issues) return patterns;
+    
+    // Group issues by title similarity
+    const titleGroups = {};
+    parsedResponse.issues.forEach(issue => {
+      const normalizedTitle = issue.title.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .trim();
+      
+      if (!titleGroups[normalizedTitle]) {
+        titleGroups[normalizedTitle] = [];
+      }
+      titleGroups[normalizedTitle].push(issue);
+    });
+    
+    // Identify patterns
+    Object.entries(titleGroups).forEach(([title, issues]) => {
+      if (issues.length > 1) {
+        patterns.push({
+          pattern: title,
+          count: issues.length,
+          severity: issues[0].severity,
+          examples: issues.slice(0, 3).map(issue => ({
+            title: issue.title,
+            description: issue.description
+          }))
+        });
+      }
+    });
+    
+    return patterns;
+  }
+
+  /**
    * Execute the AI code review
    * @returns {Promise<Object>} Review results
    */

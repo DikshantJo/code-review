@@ -573,31 +573,65 @@ class GitHubClient {
     try {
       core.info(`🔍 Getting files for commit: ${commitSha}`);
       
-      // For testing purposes, return some sample files
-      // TODO: Implement actual GitHub API call to get commit files
-      const sampleFiles = [
-        {
-          filename: 'src/main.js',
-          status: 'modified',
-          additions: 5,
-          deletions: 2,
-          changes: 7,
-          lines: 50
-        },
-        {
-          filename: 'package.json',
-          status: 'modified',
-          additions: 1,
-          deletions: 0,
-          changes: 1,
-          lines: 30
-        }
-      ];
+      // Validate commit SHA
+      if (!commitSha || commitSha.length < 7) {
+        throw new Error('Invalid commit SHA provided');
+      }
       
-      core.info(`📝 Retrieved ${sampleFiles.length} sample files for testing`);
-      return sampleFiles;
+      // Get commit details from GitHub API
+      const commitResponse = await this.octokit.rest.repos.getCommit({
+        owner: this.options.owner,
+        repo: this.options.repo,
+        ref: commitSha
+      });
+      
+      if (!commitResponse.data || !commitResponse.data.files) {
+        core.warning('No files found in commit response');
+        return [];
+      }
+      
+      // Transform GitHub API response to our format
+      const files = commitResponse.data.files.map(file => ({
+        filename: file.filename,
+        status: file.status,
+        additions: file.additions || 0,
+        deletions: file.deletions || 0,
+        changes: file.changes || 0,
+        lines: (file.additions || 0) + (file.deletions || 0),
+        patch: file.patch || '',
+        sha: file.sha || '',
+        blob_url: file.blob_url || '',
+        raw_url: file.raw_url || ''
+      }));
+      
+      core.info(`📝 Retrieved ${files.length} actual files from commit ${commitSha.substring(0, 8)}`);
+      
+      // Log file details for debugging
+      if (files.length > 0) {
+        core.info('📁 Files in commit:');
+        files.forEach(file => {
+          core.info(`   - ${file.filename} (${file.status}) +${file.additions} -${file.deletions}`);
+        });
+      }
+      
+      return files;
     } catch (error) {
-      core.warning(`Failed to get commit files: ${error.message}`);
+      // Re-throw validation errors to maintain expected behavior
+      if (error.message === 'Invalid commit SHA provided') {
+        throw error;
+      }
+      
+      core.error(`Failed to get commit files: ${error.message}`);
+      
+      // Log detailed error information for debugging
+      if (error.status) {
+        core.error(`GitHub API Status: ${error.status}`);
+      }
+      if (error.response?.data?.message) {
+        core.error(`GitHub API Error: ${error.response.data.message}`);
+      }
+      
+      // Return empty array on API errors to prevent system failure
       return [];
     }
   }
@@ -611,23 +645,69 @@ class GitHubClient {
     try {
       core.info(`🔍 Getting files for PR: ${prNumber}`);
       
-      // For now, return a single file to simulate your actual change
-      // TODO: Implement actual GitHub API call to get PR files
-      const actualFiles = [
-        {
-          filename: 'src/main.js',  // Simulating your actual changed file
-          status: 'modified',
-          additions: 5,
-          deletions: 2,
-          changes: 7,
-          lines: 50
-        }
-      ];
+      // Validate PR number
+      if (!prNumber || isNaN(prNumber) || prNumber <= 0) {
+        throw new Error('Invalid pull request number provided');
+      }
       
-      core.info(`📝 Retrieved ${actualFiles.length} actual changed file(s)`);
-      return actualFiles;
+      // Get PR files from GitHub API
+      const prFilesResponse = await this.octokit.rest.pulls.listFiles({
+        owner: this.options.owner,
+        repo: this.options.repo,
+        pull_number: prNumber
+      });
+      
+      if (!prFilesResponse.data || prFilesResponse.data.length === 0) {
+        core.warning(`No files found in PR #${prNumber}`);
+        return [];
+      }
+      
+      // Transform GitHub API response to our format
+      const files = prFilesResponse.data.map(file => ({
+        filename: file.filename,
+        status: file.status,
+        additions: file.additions || 0,
+        deletions: file.deletions || 0,
+        changes: file.changes || 0,
+        lines: (file.additions || 0) + (file.deletions || 0),
+        patch: file.patch || '',
+        sha: file.sha || '',
+        blob_url: file.blob_url || '',
+        raw_url: file.raw_url || '',
+        previous_filename: file.previous_filename || null
+      }));
+      
+      core.info(`📝 Retrieved ${files.length} actual files from PR #${prNumber}`);
+      
+      // Log file details for debugging
+      if (files.length > 0) {
+        core.info('📁 Files in PR:');
+        files.forEach(file => {
+          const changeInfo = file.previous_filename && file.filename !== file.previous_filename 
+            ? ` (renamed from ${file.previous_filename})`
+            : '';
+          core.info(`   - ${file.filename} (${file.status}) +${file.additions} -${file.deletions}${changeInfo}`);
+        });
+      }
+      
+      return files;
     } catch (error) {
-      core.warning(`Failed to get PR files: ${error.message}`);
+      // Re-throw validation errors to maintain expected behavior
+      if (error.message === 'Invalid pull request number provided') {
+        throw error;
+      }
+      
+      core.error(`Failed to get PR files: ${error.message}`);
+      
+      // Log detailed error information for debugging
+      if (error.status) {
+        core.error(`GitHub API Status: ${error.status}`);
+      }
+      if (error.response?.data?.message) {
+        core.error(`GitHub API Error: ${error.response.data.message}`);
+      }
+      
+      // Return empty array on API errors to prevent system failure
       return [];
     }
   }

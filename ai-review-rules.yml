@@ -1,0 +1,1423 @@
+# AI Code Review Rules Configuration
+# This file defines all rules, thresholds, and configurations for the AI-powered code review system
+# Version: 1.0.0
+# Last Updated: 2024
+# 
+# 🚀 COMPLETE DEPLOYMENT GUIDE INCLUDED BELOW
+# Follow all steps to get your AI code review system running!
+
+version: '1.0.0'
+enabled: true
+name: 'AI Code Review Rules'
+description: 'Comprehensive rules and configuration for AI-powered code review system'
+
+# =============================================================================
+# GLOBAL CONFIGURATION
+# =============================================================================
+
+global:
+  # Basic settings
+  severity_threshold: 'MEDIUM'  # LOW, MEDIUM, HIGH
+  max_files_per_review: 100
+  max_file_size_bytes: 1000000  # 1MB
+  timeout_seconds: 300  # 5 minutes
+  retry_attempts: 3
+  retry_delay_seconds: 5
+  
+  # Review behavior
+  parallel_reviews: true
+  cache_results: true
+  cache_duration_hours: 24
+  
+  # Performance settings
+  batch_size: 10
+  max_concurrent_requests: 5
+  rate_limit_delay_ms: 1000
+
+# =============================================================================
+# ENVIRONMENT-SPECIFIC CONFIGURATIONS
+# =============================================================================
+
+environments:
+  development:
+    name: 'Development'
+    description: 'Development branch rules - lenient for rapid iteration'
+    severity_threshold: 'LOW'
+    max_files_per_review: 150
+    timeout_seconds: 600  # 10 minutes
+    quality_gates:
+      enabled: false
+      block_merge: false
+      require_approval: false
+    rules:
+      security: { enabled: true, priority: 'HIGH', strict: false }
+      logic: { enabled: true, priority: 'HIGH', strict: false }
+      performance: { enabled: true, priority: 'MEDIUM', strict: false }
+      standards: { enabled: true, priority: 'LOW', strict: false }
+      maintainability: { enabled: true, priority: 'LOW', strict: false }
+    override_policy:
+      allow_override: true
+      override_keywords: ['DEV', 'EXPERIMENTAL', 'WIP']
+      max_overrides_per_day: 10
+
+  feature:
+    name: 'Feature Branch'
+    description: 'Feature branch rules - balanced approach'
+    severity_threshold: 'MEDIUM'
+    max_files_per_review: 100
+    timeout_seconds: 450  # 7.5 minutes
+    quality_gates:
+      enabled: true
+      block_merge: false
+      require_approval: true
+    rules:
+      security: { enabled: true, priority: 'HIGH', strict: true }
+      logic: { enabled: true, priority: 'HIGH', strict: true }
+      performance: { enabled: true, priority: 'MEDIUM', strict: false }
+      standards: { enabled: true, priority: 'MEDIUM', strict: false }
+      maintainability: { enabled: true, priority: 'MEDIUM', strict: false }
+    override_policy:
+      allow_override: true
+      override_keywords: ['FEATURE', 'EXPERIMENTAL']
+      max_overrides_per_day: 5
+
+  UAT:
+    name: 'User Acceptance Testing'
+    description: 'UAT branch rules - production-like quality'
+    severity_threshold: 'MEDIUM'
+    max_files_per_review: 75
+    timeout_seconds: 450  # 7.5 minutes
+    quality_gates:
+      enabled: true
+      block_merge: true
+      require_approval: true
+      block_high_severity: true
+      block_medium_severity: false
+    rules:
+      security: { enabled: true, priority: 'HIGH', strict: true }
+      logic: { enabled: true, priority: 'HIGH', strict: true }
+      performance: { enabled: true, priority: 'MEDIUM', strict: true }
+      standards: { enabled: true, priority: 'MEDIUM', strict: true }
+      maintainability: { enabled: true, priority: 'MEDIUM', strict: false }
+    override_policy:
+      allow_override: true
+      override_keywords: ['UAT', 'TESTING', 'DEMO']
+      max_overrides_per_day: 3
+
+  staging:
+    name: 'Staging'
+    description: 'Staging branch rules - production simulation'
+    severity_threshold: 'HIGH'
+    max_files_per_review: 75
+    timeout_seconds: 300  # 5 minutes
+    quality_gates:
+      enabled: true
+      block_merge: true
+      require_approval: true
+      block_high_severity: true
+      block_medium_severity: true
+    rules:
+      security: { enabled: true, priority: 'HIGH', strict: true }
+      logic: { enabled: true, priority: 'HIGH', strict: true }
+      performance: { enabled: true, priority: 'HIGH', strict: true }
+      standards: { enabled: true, priority: 'HIGH', strict: true }
+      maintainability: { enabled: true, priority: 'MEDIUM', strict: true }
+    override_policy:
+      allow_override: true
+      override_keywords: ['STAGING', 'PREPROD']
+      max_overrides_per_day: 2
+
+  production:
+    name: 'Production'
+    description: 'Production branch rules - highest quality standards'
+    severity_threshold: 'HIGH'
+    max_files_per_review: 50
+    timeout_seconds: 300  # 5 minutes
+    quality_gates:
+      enabled: true
+      block_merge: true
+      require_approval: true
+      block_high_severity: true
+      block_medium_severity: true
+      block_low_severity: false
+    rules:
+      security: { enabled: true, priority: 'CRITICAL', strict: true }
+      logic: { enabled: true, priority: 'CRITICAL', strict: true }
+      performance: { enabled: true, priority: 'HIGH', strict: true }
+      standards: { enabled: true, priority: 'HIGH', strict: true }
+      maintainability: { enabled: true, priority: 'MEDIUM', strict: true }
+    override_policy:
+      allow_override: true
+      override_keywords: ['URGENT', 'EMERGENCY', 'HOTFIX', 'CRITICAL', 'PRODUCTION']
+      max_overrides_per_day: 1
+      require_approval: true
+
+# =============================================================================
+# RULE DEFINITIONS
+# =============================================================================
+
+rules:
+  security:
+    name: 'Security Analysis'
+    description: 'Security vulnerability detection and prevention'
+    enabled: true
+    priority: 'CRITICAL'
+    strict: true
+    weight: 1.0  # Highest weight for security issues
+    
+    checks:
+      # Critical Security Issues
+      critical:
+        - 'SQL injection vulnerabilities'
+        - 'XSS (Cross-Site Scripting) vulnerabilities'
+        - 'CSRF (Cross-Site Request Forgery) vulnerabilities'
+        - 'Authentication bypass vulnerabilities'
+        - 'Authorization flaws and privilege escalation'
+        - 'Remote code execution vulnerabilities'
+        - 'Path traversal vulnerabilities'
+        - 'Insecure deserialization'
+        - 'Server-side request forgery (SSRF)'
+        - 'XML external entity (XXE) injection'
+      
+      # High Security Issues
+      high:
+        - 'Input validation bypass'
+        - 'Sensitive data exposure'
+        - 'Insecure dependencies and packages'
+        - 'Weak encryption algorithms'
+        - 'Insecure random number generation'
+        - 'Missing security headers'
+        - 'Insecure cookie settings'
+        - 'Information disclosure'
+        - 'Session fixation'
+        - 'Insecure direct object references'
+      
+      # Medium Security Issues
+      medium:
+        - 'Weak password policies'
+        - 'Missing rate limiting'
+        - 'Insecure file upload handling'
+        - 'Insufficient logging'
+        - 'Missing input sanitization'
+        - 'Insecure error handling'
+        - 'Missing access controls'
+        - 'Insecure configuration'
+        - 'Missing security monitoring'
+        - 'Insecure communication protocols'
+    
+    custom_patterns:
+      - pattern: 'password.*=.*["\']'
+        description: 'Hardcoded password detected'
+        severity: 'HIGH'
+      - pattern: 'api_key.*=.*["\']'
+        description: 'Hardcoded API key detected'
+        severity: 'HIGH'
+      - pattern: 'secret.*=.*["\']'
+        description: 'Hardcoded secret detected'
+        severity: 'HIGH'
+    
+    excluded_files:
+      - '*.test.js', '*.spec.js', 'tests/**/*'
+      - '*.md', '*.txt', '*.log'
+      - 'config/sample.*', 'config/example.*'
+      - 'docs/**/*', 'documentation/**/*'
+
+  logic:
+    name: 'Logic and Error Handling'
+    description: 'Logical errors, edge cases, and error handling analysis'
+    enabled: true
+    priority: 'HIGH'
+    strict: true
+    weight: 0.9
+    
+    checks:
+      # Critical Logic Issues
+      critical:
+        - 'Null pointer exceptions'
+        - 'Array bounds checking violations'
+        - 'Division by zero errors'
+        - 'Stack overflow potential'
+        - 'Infinite loop conditions'
+        - 'Deadlock potential'
+        - 'Race conditions'
+        - 'Memory leaks'
+        - 'Resource leaks'
+        - 'Unhandled exceptions'
+      
+      # High Logic Issues
+      high:
+        - 'Type safety issues'
+        - 'Boundary condition handling'
+        - 'Error propagation gaps'
+        - 'Missing error handling'
+        - 'Incomplete error recovery'
+        - 'State inconsistency'
+        - 'Data corruption potential'
+        - 'Missing validation'
+        - 'Incomplete checks'
+        - 'Logic flaws'
+      
+      # Medium Logic Issues
+      medium:
+        - 'Edge case handling'
+        - 'Input boundary validation'
+        - 'Error message quality'
+        - 'Logging completeness'
+        - 'Recovery mechanisms'
+        - 'Fallback handling'
+        - 'Timeout handling'
+        - 'Retry logic'
+        - 'Circuit breaker patterns'
+        - 'Graceful degradation'
+    
+    custom_patterns:
+      - pattern: 'if\s*\([^)]*\)\s*{[^}]*}'
+        description: 'Empty if block detected'
+        severity: 'MEDIUM'
+      - pattern: 'catch\s*\([^)]*\)\s*{[^}]*}'
+        description: 'Empty catch block detected'
+        severity: 'HIGH'
+    
+    excluded_files:
+      - '*.test.js', '*.spec.js', 'tests/**/*'
+      - '*.min.js', '*.bundle.js'
+      - 'vendor/**/*', 'third-party/**/*'
+
+  performance:
+    name: 'Performance Analysis'
+    description: 'Performance optimization and efficiency analysis'
+    enabled: true
+    priority: 'MEDIUM'
+    strict: false
+    weight: 0.7
+    
+    checks:
+      # High Performance Issues
+      high:
+        - 'Inefficient algorithms (O(n²) or worse)'
+        - 'Memory leaks and excessive memory usage'
+        - 'Unnecessary computations and loops'
+        - 'Database N+1 query problems'
+        - 'Synchronous blocking operations'
+        - 'Large object allocations'
+        - 'Inefficient data structures'
+        - 'Missing caching mechanisms'
+        - 'Resource exhaustion'
+        - 'Performance bottlenecks'
+      
+      # Medium Performance Issues
+      medium:
+        - 'Database query optimization'
+        - 'Network call optimization'
+        - 'Resource usage patterns'
+        - 'Caching opportunities'
+        - 'Async/await usage patterns'
+        - 'Batch processing opportunities'
+        - 'Lazy loading potential'
+        - 'Connection pooling'
+        - 'Memory management'
+        - 'CPU optimization'
+      
+      # Low Performance Issues
+      low:
+        - 'Code optimization'
+        - 'Algorithm improvements'
+        - 'Data structure choices'
+        - 'Loop optimization'
+        - 'String concatenation'
+        - 'Object creation patterns'
+        - 'Function call optimization'
+        - 'Variable scope optimization'
+        - 'Import optimization'
+        - 'Bundle size optimization'
+    
+    custom_patterns:
+      - pattern: 'for\s*\([^)]*\)\s*{[^}]*for\s*\([^)]*\)'
+        description: 'Nested loops detected - potential O(n²) complexity'
+        severity: 'MEDIUM'
+      - pattern: 'setTimeout\s*\([^,]*,\s*0\)'
+        description: 'Zero timeout detected - potential performance issue'
+        severity: 'LOW'
+    
+    excluded_files:
+      - '*.test.js', '*.spec.js', 'tests/**/*'
+      - '*.min.js', '*.bundle.js'
+      - 'build/**/*', 'dist/**/*'
+
+  standards:
+    name: 'Code Standards and Best Practices'
+    description: 'Code style, conventions, and best practices compliance'
+    enabled: true
+    priority: 'MEDIUM'
+    strict: false
+    weight: 0.6
+    
+    checks:
+      # High Standards Issues
+      high:
+        - 'Code style consistency violations'
+        - 'Naming convention violations'
+        - 'Function complexity (cyclomatic complexity > 10)'
+        - 'Code duplication (DRY principle)'
+        - 'Documentation quality and completeness'
+        - 'Error handling patterns'
+        - 'Logging standards'
+        - 'Testing coverage requirements'
+        - 'Import organization'
+        - 'File structure consistency'
+      
+      # Medium Standards Issues
+      medium:
+        - 'Variable naming conventions'
+        - 'Function length (max 50 lines)'
+        - 'Class design principles'
+        - 'Method organization'
+        - 'Comment quality'
+        - 'Code formatting'
+        - 'Indentation consistency'
+        - 'Spacing standards'
+        - 'Bracket placement'
+        - 'Line length limits'
+      
+      # Low Standards Issues
+      low:
+        - 'Minor formatting issues'
+        - 'Spelling in comments'
+        - 'Unused imports'
+        - 'Unused variables'
+        - 'Console statements'
+        - 'Debug code'
+        - 'Temporary code'
+        - 'Commented code'
+        - 'Whitespace issues'
+        - 'Minor style violations'
+    
+    custom_patterns:
+      - pattern: 'console\.(log|warn|error|info)'
+        description: 'Console statement detected - remove in production'
+        severity: 'LOW'
+      - pattern: 'TODO|FIXME|HACK|XXX'
+        description: 'Development marker detected'
+        severity: 'LOW'
+      - pattern: 'function\s+\w+\s*\([^)]*\)\s*{[^}]{200,}'
+        description: 'Very long function detected (>200 chars)'
+        severity: 'MEDIUM'
+    
+    excluded_files:
+      - '*.test.js', '*.spec.js', 'tests/**/*'
+      - '*.min.js', '*.bundle.js'
+      - 'build/**/*', 'dist/**/*'
+
+  maintainability:
+    name: 'Code Maintainability'
+    description: 'Code readability, organization, and future maintenance'
+    enabled: true
+    priority: 'LOW'
+    strict: false
+    weight: 0.5
+    
+    checks:
+      # Medium Maintainability Issues
+      medium:
+        - 'Code readability and clarity'
+        - 'Function and class organization'
+        - 'Separation of concerns'
+        - 'Dependency management'
+        - 'Configuration management'
+        - 'Code organization'
+        - 'Future-proofing considerations'
+        - 'Technical debt identification'
+        - 'Refactoring opportunities'
+        - 'Architecture patterns'
+      
+      # Low Maintainability Issues
+      low:
+        - 'Code comments quality'
+        - 'Variable naming clarity'
+        - 'Function purpose clarity'
+        - 'Module organization'
+        - 'File structure'
+        - 'Import organization'
+        - 'Export patterns'
+        - 'Interface design'
+        - 'Abstraction levels'
+        - 'Code reusability'
+    
+    custom_patterns:
+      - pattern: '//\s*[A-Z][a-z]+:'
+        description: 'Section comment detected - good practice'
+        severity: 'INFO'
+      - pattern: 'class\s+\w+\s*{[^}]*}'
+        description: 'Class definition detected - check organization'
+        severity: 'LOW'
+    
+    excluded_files:
+      - '*.test.js', '*.spec.js', 'tests/**/*'
+      - '*.min.js', '*.bundle.js'
+      - 'build/**/*', 'dist/**/*'
+
+# =============================================================================
+# FILE FILTERING RULES
+# =============================================================================
+
+file_filtering:
+  # File types to exclude from review
+  exclude_patterns:
+    # Binary and media files
+    - '*.exe', '*.dll', '*.so', '*.jar', '*.war', '*.ear'
+    - '*.jpg', '*.jpeg', '*.png', '*.gif', '*.svg', '*.ico', '*.bmp'
+    - '*.mp3', '*.mp4', '*.avi', '*.mov', '*.wav', '*.flac'
+    - '*.pdf', '*.doc', '*.docx', '*.xls', '*.xlsx', '*.ppt', '*.pptx'
+    
+    # Data and database files
+    - '*.sql', '*.db', '*.sqlite', '*.sqlite3'
+    - '*.csv', '*.tsv', '*.json', '*.xml', '*.yaml', '*.yml'
+    - '*.log', '*.txt', '*.md', '*.rst', '*.adoc'
+    
+    # Configuration and environment files
+    - '.env*', '*.env', '*.config', '*.conf', '*.ini'
+    - '*.key', '*.pem', '*.p12', '*.pfx', '*.crt', '*.cer'
+    - '*.properties', '*.yml', '*.yaml', '*.toml'
+    
+    # Build and dependency files
+    - 'node_modules/**/*', '.git/**/*', '.svn/**/*'
+    - 'dist/**/*', 'build/**/*', 'target/**/*', 'out/**/*'
+    - 'coverage/**/*', '.nyc_output/**/*', 'reports/**/*'
+    - '*.min.js', '*.bundle.js', '*.chunk.js'
+    - 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'
+    - 'Gemfile.lock', 'Pipfile.lock', 'requirements.txt'
+    
+    # Test and documentation files
+    - '*.test.js', '*.spec.js', '*.test.ts', '*.spec.ts'
+    - 'tests/**/*', 'test/**/*', 'spec/**/*', '__tests__/**/*'
+    - 'docs/**/*', 'documentation/**/*', '*.md', '*.rst'
+    
+    # Temporary and cache files
+    - '*.tmp', '*.temp', '*.cache', '*.bak', '*.backup'
+    - '.DS_Store', 'Thumbs.db', 'desktop.ini'
+    - '.vscode/**/*', '.idea/**/*', '*.swp', '*.swo'
+  
+  # File types to include in review
+  include_patterns:
+    - '*.js', '*.jsx', '*.ts', '*.tsx'
+    - '*.java', '*.kt', '*.scala'
+    - '*.py', '*.pyw', '*.pyx'
+    - '*.c', '*.cpp', '*.cc', '*.cxx', '*.h', '*.hpp'
+    - '*.cs', '*.vb', '*.fs'
+    - '*.go', '*.rs', '*.swift'
+    - '*.php', '*.rb', '*.pl', '*.sh', '*.bash'
+    - '*.html', '*.htm', '*.css', '*.scss', '*.sass'
+    - '*.vue', '*.svelte', '*.elm'
+    - '*.sql', '*.plsql', '*.tql'
+  
+  # File size limits
+  max_file_size_bytes: 1000000  # 1MB
+  max_files_per_review: 100
+  
+  # Language-specific rules
+  language_rules:
+    javascript:
+      extensions: ['.js', '.jsx', '.mjs']
+      framework_patterns: ['react', 'vue', 'angular', 'express', 'koa']
+      common_issues: ['callback hell', 'promise chains', 'async/await misuse']
+    
+    typescript:
+      extensions: ['.ts', '.tsx']
+      framework_patterns: ['react', 'vue', 'angular', 'express', 'koa']
+      common_issues: ['type safety', 'interface design', 'generic usage']
+    
+    python:
+      extensions: ['.py', '.pyw', '.pyx']
+      framework_patterns: ['django', 'flask', 'fastapi', 'pandas', 'numpy']
+      common_issues: ['import organization', 'virtual environments', 'dependency management']
+    
+    java:
+      extensions: ['.java']
+      framework_patterns: ['spring', 'hibernate', 'junit', 'mockito']
+      common_issues: ['exception handling', 'resource management', 'design patterns']
+
+# =============================================================================
+# NOTIFICATION CONFIGURATION
+# =============================================================================
+
+notifications:
+  # GitHub Issues integration
+  github_issues:
+    enabled: true
+    assign_to_team_lead: true
+    team_lead_username: ''  # Set in secrets
+    issue_labels: ['ai-review', 'code-quality', 'security', 'performance']
+    issue_template: 'default'
+    create_issues_for:
+      - 'HIGH': true
+      - 'CRITICAL': true
+      - 'MEDIUM': false
+      - 'LOW': false
+    
+    issue_priorities:
+      'CRITICAL': 'P0'
+      'HIGH': 'P1'
+      'MEDIUM': 'P2'
+      'LOW': 'P3'
+  
+  # Email notifications
+  email:
+    enabled: true
+    smtp_host: ${{ secrets.SMTP_HOST }}
+    smtp_port: ${{ secrets.SMTP_PORT }}
+    smtp_user: ${{ secrets.SMTP_USER }}
+    smtp_pass: ${{ secrets.SMTP_PASS }}
+    smtp_secure: ${{ secrets.SMTP_SECURE }}
+    from_email: 'ai-review@yourcompany.com'
+    to_emails: ['your-email@domain.com']
+    
+    notification_triggers:
+      - 'CRITICAL': 'immediate'
+      - 'HIGH': 'immediate'
+      - 'MEDIUM': 'batch'
+      - 'LOW': 'summary'
+    
+    email_templates:
+      critical: 'security-alert'
+      high: 'quality-alert'
+      medium: 'review-summary'
+      low: 'weekly-summary'
+  
+  # Slack notifications
+  slack:
+    enabled: false
+    webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+    channel: '#ai-reviews'
+    username: 'AI Review Bot'
+    icon_emoji: ':robot_face:'
+    
+    notification_triggers:
+      - 'CRITICAL': 'immediate'
+      - 'HIGH': 'immediate'
+      - 'MEDIUM': 'daily'
+      - 'LOW': 'weekly'
+    
+    message_formats:
+      critical: '🚨 CRITICAL: {issue_count} issues found in {repo}#{pr}'
+      high: '⚠️ HIGH: {issue_count} issues found in {repo}#{pr}'
+      medium: 'ℹ️ MEDIUM: {issue_count} issues found in {repo}#{pr}'
+      low: 'ℹ️ LOW: {issue_count} issues found in {repo}#{pr}'
+
+# =============================================================================
+# QUALITY GATES CONFIGURATION
+# =============================================================================
+
+quality_gates:
+  enabled: true
+  name: 'AI Code Review Quality Gates'
+  description: 'Automated quality checks that can block merges'
+  
+  # Gate thresholds
+  thresholds:
+    critical: 0      # Zero critical issues allowed
+    high: 0          # Zero high issues allowed
+    medium: 5        # Max 5 medium issues
+    low: 20          # Max 20 low issues
+  
+  # Blocking behavior
+  block_merge: true
+  require_approval: true
+  block_high_severity: true
+  block_medium_severity: false
+  block_low_severity: false
+  
+  # Override policies
+  allow_override: true
+  override_keywords: ['URGENT', 'EMERGENCY', 'HOTFIX', 'CRITICAL', 'PRODUCTION']
+  override_logging: true
+  max_override_frequency: 5  # per day
+  override_approval_required: true
+  
+  # Gate evaluation
+  evaluation_criteria:
+    - 'Security issues (CRITICAL/HIGH)'
+    - 'Logic errors (CRITICAL/HIGH)'
+    - 'Performance issues (HIGH)'
+    - 'Code standards (MEDIUM)'
+    - 'Maintainability (LOW)'
+  
+  # Gate results
+  gate_results:
+    passed: 'All quality gates passed'
+    failed: 'Quality gates failed - review required'
+    warning: 'Quality gates passed with warnings'
+    blocked: 'Merge blocked due to quality gate failure'
+
+# =============================================================================
+# AI CONFIGURATION
+# =============================================================================
+
+ai:
+  # Model configuration
+  model: 'gpt-4'
+  temperature: 0.1  # Low temperature for consistent results
+  max_tokens: 8000
+  top_p: 1.0
+  frequency_penalty: 0.0
+  presence_penalty: 0.0
+  
+  # System prompts
+  system_prompt_template: 'default'
+  response_format: 'json'
+  language_specific_prompts: true
+  
+  # Review prompts
+  review_prompts:
+    security: 'Analyze this code for security vulnerabilities including SQL injection, XSS, CSRF, authentication bypass, and other security issues.'
+    logic: 'Review this code for logical errors, edge cases, error handling gaps, and potential runtime issues.'
+    performance: 'Analyze this code for performance issues, inefficient algorithms, memory leaks, and optimization opportunities.'
+    standards: 'Check this code for coding standards, best practices, style consistency, and maintainability concerns.'
+    maintainability: 'Evaluate this code for readability, organization, future maintenance, and technical debt.'
+  
+  # Response parsing
+  response_parsing:
+    structured_output: true
+    severity_mapping: true
+    file_location_extraction: true
+    suggestion_generation: true
+  
+  # Cost optimization
+  cost_optimization:
+    token_usage_tracking: true
+    cost_per_review_limit: 5.0  # $5 per review
+    model_selection_strategy: 'auto'
+    fallback_models: ['gpt-3.5-turbo', 'gpt-4-turbo']
+
+# =============================================================================
+# LOGGING AND MONITORING
+# =============================================================================
+
+logging:
+  # Log levels
+  level: 'INFO'  # DEBUG, INFO, WARN, ERROR
+  audit_trail: true
+  performance_metrics: true
+  error_reporting: true
+  
+  # Log retention
+  log_retention_days: 30
+  log_rotation: true
+  max_log_size_mb: 100
+  
+  # Log destinations
+  destinations:
+    - 'file'
+    - 'console'
+    - 'github_actions'
+  
+  # Audit logging
+  audit_logging:
+    enabled: true
+    log_dir: './logs/audit'
+    log_format: 'json'
+    sensitive_data_masking: true
+    user_action_tracking: true
+  
+  # Performance logging
+  performance_logging:
+    enabled: true
+    metrics_collection: true
+    response_time_tracking: true
+    resource_usage_monitoring: true
+    cost_tracking: true
+
+# =============================================================================
+# MONITORING DASHBOARD
+# =============================================================================
+
+monitoring:
+  enabled: true
+  name: 'AI Code Review Dashboard'
+  description: 'Real-time monitoring and metrics for AI code review system'
+  
+  # Dashboard configuration
+  dashboard_dir: './logs/dashboard'
+  refresh_interval_seconds: 30
+  auto_generate: true
+  
+  # Metrics collection
+  metrics:
+    response_time: true
+    error_rate: true
+    quality_score: true
+    cost_per_review: true
+    failure_rate: true
+    review_volume: true
+    issue_distribution: true
+    environment_performance: true
+  
+  # Alert thresholds
+  alerts:
+    response_time_threshold: 60000  # 60 seconds
+    error_rate_threshold: 0.1      # 10%
+    quality_score_threshold: 0.6   # 60%
+    cost_threshold: 5.0            # $5 per review
+    failure_rate_threshold: 0.05   # 5%
+    volume_threshold: 100          # 100 reviews per hour
+  
+  # Alert channels
+  channels:
+    email: true
+    slack: false
+    github: true
+    webhook: false
+  
+  # Dashboard features
+  features:
+    real_time_updates: true
+    historical_data: true
+    trend_analysis: true
+    export_capabilities: true
+    custom_views: true
+    team_performance: true
+
+# =============================================================================
+# INTEGRATION CONFIGURATION
+# =============================================================================
+
+integrations:
+  # GitHub integration
+  github:
+    enabled: true
+    api_version: '2022-11-28'
+    rate_limit_handling: true
+    webhook_support: true
+    
+    # Pull request integration
+    pull_request:
+      comment_on_pr: true
+      create_issues: true
+      update_status: true
+      add_labels: true
+      assign_reviewers: true
+    
+    # Issue integration
+    issues:
+      create_issues: true
+      update_issues: true
+      close_issues: true
+      add_comments: true
+    
+    # Status checks
+    status_checks:
+      enabled: true
+      name: 'AI Code Review'
+      description: 'AI-powered code quality analysis'
+  
+  # CI/CD integration
+  cicd:
+    jenkins: false
+    github_actions: true
+    gitlab_ci: false
+    azure_devops: false
+    circle_ci: false
+    travis_ci: false
+  
+  # External tools
+  external_tools:
+    sonarqube: false
+    codeclimate: false
+    codacy: false
+    snyk: false
+    dependabot: false
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+
+security:
+  # API security
+  api_security:
+    rate_limiting: true
+    request_validation: true
+    input_sanitization: true
+    output_encoding: true
+  
+  # Data security
+  data_security:
+    encryption_at_rest: false
+    encryption_in_transit: true
+    data_masking: true
+    audit_logging: true
+  
+  # Access control
+  access_control:
+    authentication_required: true
+    authorization_enabled: true
+    role_based_access: false
+    ip_whitelisting: false
+  
+  # Compliance
+  compliance:
+    gdpr_compliance: false
+    sox_compliance: false
+    hipaa_compliance: false
+    pci_compliance: false
+
+# =============================================================================
+# PERFORMANCE CONFIGURATION
+# =============================================================================
+
+performance:
+  # Caching
+  caching:
+    enabled: true
+    cache_type: 'memory'
+    cache_ttl_seconds: 3600  # 1 hour
+    cache_max_size: 1000
+    cache_eviction_policy: 'lru'
+  
+  # Rate limiting
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+    tokens_per_minute: 150000
+    burst_limit: 10
+  
+  # Optimization
+  optimization:
+    parallel_processing: true
+    batch_processing: true
+    lazy_loading: true
+    compression: true
+  
+  # Resource management
+  resource_management:
+    memory_limit_mb: 512
+    cpu_limit_percent: 80
+    timeout_seconds: 300
+    max_concurrent_requests: 5
+
+# =============================================================================
+# DEPLOYMENT CONFIGURATION
+# =============================================================================
+
+deployment:
+  # Environment variables
+  environment_variables:
+    required:
+      - 'OPENAI_API_KEY'
+      - 'GITHUB_TOKEN'
+    optional:
+      - 'SMTP_HOST'
+      - 'SMTP_USER'
+      - 'SMTP_PASS'
+      - 'SMTP_PORT'
+      - 'SMTP_SECURE'
+      - 'SLACK_WEBHOOK_URL'
+      - 'TEAM_LEAD_USERNAME'
+  
+  # Health checks
+  health_checks:
+    enabled: true
+    check_interval_seconds: 30
+    timeout_seconds: 10
+    failure_threshold: 3
+  
+  # Rollback configuration
+  rollback:
+    enabled: true
+    automatic_rollback: false
+    rollback_threshold: 0.1  # 10% failure rate
+  
+  # Scaling configuration
+  scaling:
+    auto_scaling: false
+    min_instances: 1
+    max_instances: 5
+    scale_up_threshold: 0.8
+    scale_down_threshold: 0.2
+
+# =============================================================================
+# MAINTENANCE AND UPDATES
+# =============================================================================
+
+maintenance:
+  # Update configuration
+  updates:
+    auto_update: false
+    update_check_interval_hours: 24
+    update_notification: true
+  
+  # Backup configuration
+  backup:
+    enabled: true
+    backup_interval_hours: 24
+    backup_retention_days: 7
+    backup_location: './backups'
+  
+  # Cleanup configuration
+  cleanup:
+    enabled: true
+    cleanup_interval_hours: 168  # 1 week
+    log_cleanup: true
+    cache_cleanup: true
+    temp_file_cleanup: true
+
+# =============================================================================
+# METADATA
+# =============================================================================
+
+metadata:
+  version: '1.0.0'
+  last_updated: '2024-01-01'
+  author: 'AI Code Review Team'
+  contact: 'ai-review@yourcompany.com'
+  documentation: 'https://github.com/your-org/ai-code-review-action'
+  license: 'MIT'
+  tags:
+    - 'ai'
+    - 'code-review'
+    - 'security'
+    - 'quality'
+    - 'automation'
+    - 'github-actions'
+
+# =============================================================================
+# 🚀 COMPLETE DEPLOYMENT GUIDE
+# =============================================================================
+# 
+# This section contains EVERYTHING you need to deploy and use the AI code review tool
+# Follow these steps in order - no assumptions made, everything explained!
+
+# =============================================================================
+# 📋 PREREQUISITES CHECKLIST
+# =============================================================================
+# 
+# Before starting, ensure you have:
+# ✅ GitHub account with a repository
+# ✅ OpenAI API account with credits
+# ✅ Email account (Gmail, Outlook, or company email)
+# ✅ Basic understanding of GitHub (creating files, commits, pull requests)
+# ✅ Command line access (PowerShell/Command Prompt on Windows)
+
+# =============================================================================
+# 🔧 PHASE 1: TOOL REPOSITORY SETUP
+# =============================================================================
+# 
+# Step 1.1: Create Tool Repository
+# 1. Go to GitHub.com → Sign in
+# 2. Click "+" → "New repository"
+# 3. Fill in:
+#    - Repository name: ai-code-review-action
+#    - Description: AI-powered code review GitHub Action
+#    - Visibility: Public (required for free GitHub Actions)
+#    - Initialize with: ✅ Add a README file
+# 4. Click "Create repository"
+# 
+# Step 1.2: Upload Your Local Tool
+# Open Command Prompt/PowerShell and run:
+# 
+# # Navigate to your local tool directory
+# cd "C:\Users\eposh\OneDrive\Desktop\Dikshant\jenkins\github-review-plugin"
+# 
+# # Initialize git repository
+# git init
+# 
+# # Add your GitHub repository as remote (REPLACE YOUR_USERNAME)
+# git remote add origin https://github.com/YOUR_USERNAME/ai-code-review-action.git
+# 
+# # Add all files
+# git add .
+# 
+# # Commit files
+# git commit -m "Initial commit: AI Code Review Action"
+# 
+# # Push to GitHub
+# git push -u origin main
+# 
+# ⚠️ IMPORTANT: Replace YOUR_USERNAME with your actual GitHub username!
+
+# =============================================================================
+# ⚙️ PHASE 2: TARGET REPOSITORY SETUP
+# =============================================================================
+# 
+# Step 2.1: Go to Your Target Repository
+# 1. Navigate to the GitHub repository where you want to use the code review tool
+# 2. This is the repository where you'll be doing code reviews
+# 
+# Step 2.2: Create GitHub Actions Workflow
+# 1. In your target repository, click "Actions" tab
+# 2. Click "New workflow"
+# 3. Click "set up a workflow yourself"
+# 4. This creates .github/workflows/ai-review.yml
+# 
+# Step 2.3: Configure Workflow File
+# Replace the content with this complete configuration:
+# 
+# name: AI Code Review
+# 
+# on:
+#   pull_request:
+#     branches: [main, dev, UAT, staging, production]
+#   push:
+#     branches: [main, dev, UAT, staging, production]
+# 
+# jobs:
+#   review:
+#     runs-on: ubuntu-latest
+#     timeout-minutes: 10
+#     
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0  # Required for proper diff analysis
+#         
+#       - name: AI Code Review
+#         uses: YOUR_USERNAME/ai-code-review-action@main
+#         with:
+#           # Required inputs
+#           target-branch: ${{ github.base_ref || github.ref_name }}
+#           
+#           # Review configuration
+#           severity-threshold: 'MEDIUM'
+#           enable-production-gates: true
+#           max-files: 100
+#           timeout: 300
+#           
+#           # Notification settings
+#           email-notifications: true
+#           slack-notifications: false
+#           
+#           # Advanced settings
+#           log-level: 'INFO'
+#           audit-log-enabled: true
+#           retry-attempts: 3
+#           retry-delay: 5
+#           
+#         env:
+#           # Required environment variables
+#           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#           
+#           # SMTP Configuration (for email notifications)
+#           SMTP_HOST: ${{ secrets.SMTP_HOST }}
+#           SMTP_USER: ${{ secrets.SMTP_USER }}
+#           SMTP_PASS: ${{ secrets.SMTP_PASS }}
+#           SMTP_PORT: ${{ secrets.SMTP_PORT }}
+#           SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
+#           
+#           # Optional: Slack notifications
+#           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+#           
+#           # Optional: Team lead for issue assignment
+#           TEAM_LEAD_USERNAME: ${{ secrets.TEAM_LEAD_USERNAME }}
+# 
+# ⚠️ CRITICAL: Replace YOUR_USERNAME with your actual GitHub username!
+# 
+# Step 2.4: Create Configuration File
+# 1. In your target repository, go to "Code" tab
+# 2. Click "Add file" → "Create new file"
+# 3. Name it: .github/ai-review-config.yml
+# 4. Copy the ENTIRE content of this file (ai-review-rules.yml) into it
+# 5. Click "Commit new file"
+
+# =============================================================================
+# 🔐 PHASE 3: SECRETS & CREDENTIALS SETUP
+# =============================================================================
+# 
+# Step 3.1: Get OpenAI API Key
+# 1. Go to OpenAI.com → Sign in/Create account
+# 2. Click "API keys" → "Create new secret key"
+# 3. Name: GitHub Actions Code Review
+# 4. Copy the key (starts with sk-...)
+# 5. ⚠️ SAVE IT SAFELY - you won't see it again!
+# 
+# Step 3.2: Set Up SMTP Credentials
+# 
+# Option A: Gmail (Recommended for Beginners)
+# 1. Enable 2-Factor Authentication on your Gmail account:
+#    - Go to myaccount.google.com
+#    - Click "Security"
+#    - Enable "2-Step Verification"
+# 
+# 2. Generate App Password:
+#    - In Security, click "App passwords"
+#    - Select "Mail" and "Other (Custom name)"
+#    - Name it: "GitHub AI Review"
+#    - Click "Generate"
+#    - Copy the 16-character password (looks like: abcd efgh ijkl mnop)
+# 
+# 3. Add Gmail SMTP Secrets to Your Repository:
+#    - Go to your repository → "Settings" → "Secrets and variables" → "Actions"
+#    - Add these secrets one by one:
+# 
+#    Secret 1:
+#    - Name: SMTP_HOST
+#    - Value: smtp.gmail.com
+# 
+#    Secret 2:
+#    - Name: SMTP_USER
+#    - Value: your-email@gmail.com
+# 
+#    Secret 3:
+#    - Name: SMTP_PASS
+#    - Value: your-16-character-app-password
+# 
+#    Secret 4:
+#    - Name: SMTP_PORT
+#    - Value: 587
+# 
+#    Secret 5:
+#    - Name: SMTP_SECURE
+#    - Value: false
+# 
+# Option B: Outlook/Office 365
+# Add these secrets:
+# - Name: SMTP_HOST → Value: smtp-mail.outlook.com
+# - Name: SMTP_USER → Value: your-email@outlook.com
+# - Name: SMTP_PASS → Value: your-outlook-password
+# - Name: SMTP_PORT → Value: 587
+# - Name: SMTP_SECURE → Value: false
+# 
+# Option C: Company Email Server
+# If you have a company email server, ask your IT team for:
+# - SMTP server address
+# - Port number
+# - Username/email
+# - Password
+# - Whether to use SSL/TLS
+# 
+# Step 3.3: Add All Required Secrets
+# In your repository → "Settings" → "Secrets and variables" → "Actions":
+# 
+# Required Secrets:
+# | Name | Value | Description |
+# |------|-------|-------------|
+# | OPENAI_API_KEY | sk-... | Your OpenAI API key |
+# | GITHUB_TOKEN | ${{ github.token }} | Automatically provided |
+# 
+# SMTP Secrets (for email notifications):
+# | Name | Value | Description |
+# |------|-------|-------------|
+# | SMTP_HOST | smtp.gmail.com | SMTP server address |
+# | SMTP_USER | your-email@domain.com | SMTP username |
+# | SMTP_PASS | your-password | SMTP password |
+# | SMTP_PORT | 587 | SMTP port |
+# | SMTP_SECURE | false | Use TLS |
+# 
+# Optional Secrets:
+# | Name | Value | Description |
+# |------|-------|-------------|
+# | SLACK_WEBHOOK_URL | https://hooks.slack.com/... | Slack webhook URL |
+# | TEAM_LEAD_USERNAME | username | GitHub username for issue assignment |
+
+# =============================================================================
+# 🧪 PHASE 4: TESTING & VERIFICATION
+# =============================================================================
+# 
+# Step 4.1: Create Test Branch
+# 1. In your target repository, click "main" branch dropdown
+# 2. Click "View all branches" → "New branch"
+# 3. Name it: test-ai-review
+# 4. Click "Create branch"
+# 
+# Step 4.2: Make Test Changes
+# 1. In the test branch, edit any file
+# 2. Add a comment: // Test change for AI review - testing security analysis
+# 3. Click "Commit changes"
+# 
+# Step 4.3: Create Pull Request
+# 1. Click "Compare & pull request"
+# 2. Title: Test AI Code Review System
+# 3. Description: Testing the AI code review tool setup
+# 4. Click "Create pull request"
+# 
+# Step 4.4: Monitor the Action
+# 1. In the pull request, click "Checks" tab
+# 2. Look for "AI Code Review" job
+# 3. Click on it to see detailed logs
+# 4. Wait for completion (2-5 minutes)
+# 
+# Step 4.5: Check Results
+# 1. GitHub Comments: AI review results appear as comments
+# 2. Email Notifications: Check your email for review summary
+# 3. Issues: High-severity issues create GitHub issues
+# 4. Quality Gates: Check if merge is blocked
+
+# =============================================================================
+# 📊 PHASE 5: MONITORING & DASHBOARD
+# =============================================================================
+# 
+# Step 5.1: Access Monitoring Dashboard
+# The tool creates a monitoring dashboard at:
+# - Location: ./logs/dashboard/ in your repository
+# - Files: index.html, dashboard-data.json
+# 
+# Step 5.2: Dashboard Features
+# - Real-time metrics: Response time, error rate, quality scores
+# - Cost tracking: OpenAI API usage costs
+# - Performance trends: Review volume and success rates
+# - Alert management: Email/Slack notifications for issues
+
+# =============================================================================
+# 🔧 PHASE 6: TROUBLESHOOTING
+# =============================================================================
+# 
+# Common Issues & Solutions
+# 
+# Issue 1: Action Not Running
+# Symptoms: No "AI Code Review" job appears
+# Solutions:
+# 1. Check workflow file is in .github/workflows/
+# 2. Verify branch names match your repository
+# 3. Check for syntax errors in YAML
+# 
+# Issue 2: OpenAI API Errors
+# Symptoms: Action fails with API errors
+# Solutions:
+# 1. Verify OPENAI_API_KEY secret is set
+# 2. Check OpenAI account has credits
+# 3. Verify API key format (starts with sk-)
+# 
+# Issue 3: SMTP/Email Errors
+# Symptoms: Action succeeds but no emails
+# Solutions:
+# 1. Check all SMTP secrets are set
+# 2. Verify SMTP credentials are correct
+# 3. Check spam folder
+# 4. Test SMTP settings manually
+# 
+# Issue 4: No Review Comments
+# Symptoms: Action runs but no feedback appears
+# Solutions:
+# 1. Wait 2-5 minutes for AI processing
+# 2. Check action logs for errors
+# 3. Verify configuration file is correct
+# 4. Check file filtering rules
+
+# =============================================================================
+# 📈 PHASE 7: OPTIMIZATION & CUSTOMIZATION
+# =============================================================================
+# 
+# Performance Tuning
+# 1. Adjust file limits: Modify max_files_per_review based on your needs
+# 2. Set timeouts: Increase timeout_seconds for large repositories
+# 3. Configure exclusions: Add file patterns to exclude_patterns
+# 
+# Quality Gate Customization
+# 1. Severity thresholds: Adjust per environment
+# 2. Override policies: Configure emergency override keywords
+# 3. Blocking rules: Set which issues block merges
+# 
+# Notification Preferences
+# 1. Email frequency: Configure when emails are sent
+# 2. Slack integration: Set up team notifications
+# 3. Issue assignment: Configure team lead assignment
+
+# =============================================================================
+# 💰 COST MANAGEMENT
+# =============================================================================
+# 
+# OpenAI API Costs
+# - GPT-4: ~$0.01-0.10 per review
+# - Factors: Code size, complexity, token usage
+# - Monitoring: Dashboard tracks costs per review
+# 
+# Cost Optimization
+# 1. File filtering: Exclude unnecessary files
+# 2. Review limits: Set appropriate file count limits
+# 3. Environment targeting: Use different models per environment
+
+# =============================================================================
+# 🔒 SECURITY CONSIDERATIONS
+# =============================================================================
+# 
+# Data Privacy
+# - Code Analysis: Your code is sent to OpenAI for analysis
+# - API Keys: Store securely as GitHub secrets
+# - Audit Logging: All actions are logged for compliance
+# 
+# Access Control
+# - Repository Permissions: Limit who can modify workflow files
+# - Secret Management: Use GitHub's secret management
+# - Branch Protection: Protect main branches with quality gates
+
+# =============================================================================
+# 📚 NEXT STEPS
+# =============================================================================
+# 
+# Immediate Actions
+# 1. ✅ Deploy the tool to your repository
+# 2. ✅ Test with a small pull request
+# 3. ✅ Verify email notifications work
+# 4. ✅ Check monitoring dashboard
+# 
+# Team Training
+# 1. Review Process: Train team on interpreting AI feedback
+# 2. Quality Gates: Understand when merges are blocked
+# 3. Issue Management: Handle AI-created issues
+# 4. Best Practices: Integrate into development workflow
+# 
+# Advanced Features
+# 1. Custom Rules: Add project-specific checks
+# 2. Language Support: Configure for your tech stack
+# 3. Integration: Connect with other CI/CD tools
+# 4. Reporting: Generate compliance and quality reports
+
+# =============================================================================
+# 🚨 EMERGENCY PROCEDURES
+# =============================================================================
+# 
+# If Tool Breaks
+# 1. Disable Action: Comment out workflow in .github/workflows/ai-review.yml
+# 2. Check Logs: Review action logs for errors
+# 3. Verify Secrets: Ensure all secrets are still valid
+# 4. Rollback: Revert to previous working configuration
+# 
+# If Quality Gates Block Critical Fixes
+# 1. Use Override: Add URGENT or EMERGENCY to commit message
+# 2. Manual Override: Temporarily disable quality gates
+# 3. Emergency Merge: Use GitHub's override features
+
+# =============================================================================
+# 📞 SUPPORT & HELP
+# =============================================================================
+# 
+# When You Need Help
+# 1. Check action logs first - most errors are logged there
+# 2. Verify all secrets are set correctly
+# 3. Test with a simple change first
+# 4. Check GitHub Actions documentation
+# 5. Review this configuration file for settings
+# 
+# Common Mistakes to Avoid
+# 1. ❌ Forgetting to replace YOUR_USERNAME in workflow files
+# 2. ❌ Not setting up SMTP credentials properly
+# 3. ❌ Using wrong branch names in workflow triggers
+# 4. ❌ Not waiting for AI processing to complete
+# 5. ❌ Ignoring quality gate failures
+
+# =============================================================================
+# 🎯 QUICK START CHECKLIST
+# =============================================================================
+# 
+# ✅ Create tool repository on GitHub
+# ✅ Upload local tool files
+# ✅ Set up target repository workflow
+# ✅ Create configuration file
+# ✅ Get OpenAI API key
+# ✅ Set up SMTP credentials
+# ✅ Add all required secrets
+# ✅ Test with pull request
+# ✅ Verify notifications work
+# ✅ Check monitoring dashboard
+# 
+# 🎉 CONGRATULATIONS! Your AI code review system is now running!
+# 
+# The tool will automatically:
+# - Review all code changes in pull requests
+# - Check for security vulnerabilities
+# - Analyze code quality and performance
+# - Create GitHub issues for high-severity problems
+# - Send email notifications
+# - Block merges if quality gates fail
+# - Provide real-time monitoring and metrics
+# 
+# Happy coding with AI-powered quality assurance! 🚀

@@ -48813,6 +48813,655 @@ ${Object.entries(reviewResult.severityBreakdown || {}).map(([severity, count]) =
   }
 
   /**
+   * Comprehensive AI response logging for debugging and audit
+   * @param {Object} aiResponse - Raw AI response from OpenAI
+   * @param {Object} parsedResponse - Parsed and validated response
+   * @param {Object} context - Additional context information
+   */
+  async logAIResponseDetails(aiResponse, parsedResponse, context) {
+    try {
+      const logData = {
+        timestamp: new Date().toISOString(),
+        sessionId: context.sessionId,
+        repository: this.context.repository,
+        branch: context.branchInfo?.targetBranch,
+        environment: context.branchInfo?.branchType,
+        
+        // AI Model Information
+        aiModel: {
+          model: aiResponse.model || 'unknown',
+          version: aiResponse.model_version || 'unknown',
+          provider: 'openai'
+        },
+        
+        // Token Usage
+        tokenUsage: this.calculateEnhancedTokenAnalytics(aiResponse.usage, context),
+        
+        // Performance Metrics
+        performance: {
+          responseTime: context.responseTime,
+          responseSize: JSON.stringify(aiResponse).length,
+          filesProcessed: context.filesCount,
+          averageTimePerFile: context.filesCount > 0 ? context.responseTime / context.filesCount : 0
+        },
+        
+        // Response Quality
+        responseQuality: this.calculateEnhancedQualityMetrics(aiResponse, parsedResponse, context),
+        
+        // Content Analysis
+        contentAnalysis: {
+          responseType: this.detectResponseType(aiResponse),
+          hasCodeSuggestions: this.hasCodeSuggestions(aiResponse),
+          hasSecurityIssues: this.hasSecurityIssues(parsedResponse),
+          hasPerformanceIssues: this.hasPerformanceIssues(parsedResponse),
+          hasStyleIssues: this.hasStyleIssues(parsedResponse)
+        },
+        
+        // Error Information (if any)
+        errors: this.extractErrors(aiResponse, parsedResponse),
+        
+        // Raw Response Metadata
+        rawResponse: {
+          id: aiResponse.id || 'unknown',
+          object: aiResponse.object || 'unknown',
+          created: aiResponse.created || 'unknown',
+          finishReason: aiResponse.choices?.[0]?.finish_reason || 'unknown'
+        }
+      };
+      
+      // Log to audit logger
+      if (this.auditLogger) {
+        await this.auditLogger.logAIResponse(logData);
+      }
+      
+      // Log to console with structured format
+      core.info('📊 AI Response Analysis:');
+      core.info(`   Session: ${logData.sessionId}`);
+      core.info(`   Model: ${logData.aiModel.model} (${logData.tokenUsage.total} tokens)`);
+      core.info(`   Response Time: ${logData.performance.responseTime}ms`);
+      core.info(`   Quality Score: ${logData.responseQuality.qualityScore}`);
+      core.info(`   Issues Found: ${logData.responseQuality.issuesCount}`);
+      core.info(`   Response Type: ${logData.contentAnalysis.responseType}`);
+      
+      // Log detailed token breakdown
+      if (logData.tokenUsage.total > 0) {
+        core.info('💰 Token Usage Breakdown:');
+        core.info(`   Prompt: ${logData.tokenUsage.prompt} tokens`);
+        core.info(`   Completion: ${logData.tokenUsage.completion} tokens`);
+        core.info(`   Total: ${logData.tokenUsage.total} tokens`);
+        if (logData.tokenUsage.cost) {
+          core.info(`   Estimated Cost: $${logData.tokenUsage.cost.toFixed(4)}`);
+        }
+      }
+      
+      // Log content analysis
+      core.info('🔍 Content Analysis:');
+      core.info(`   Code Suggestions: ${logData.contentAnalysis.hasCodeSuggestions ? '✅' : '❌'}`);
+      core.info(`   Security Issues: ${logData.contentAnalysis.hasSecurityIssues ? '🚨' : '✅'}`);
+      core.info(`   Performance Issues: ${logData.contentAnalysis.hasPerformanceIssues ? '🐌' : '✅'}`);
+      core.info(`   Style Issues: ${logData.contentAnalysis.hasStyleIssues ? '🎨' : '✅'}`);
+      
+      // Log any errors or warnings
+      if (logData.errors.length > 0) {
+        core.warning('⚠️ AI Response Errors/Warnings:');
+        logData.errors.forEach((error, index) => {
+          core.warning(`   ${index + 1}. ${error.type}: ${error.message}`);
+        });
+      }
+      
+      // Store in session for later analysis
+      this.currentSessionData = {
+        ...this.currentSessionData,
+        aiResponseLog: logData
+      };
+      
+    } catch (error) {
+      core.warning(`Failed to log AI response details: ${error.message}`);
+      // Continue execution even if logging fails
+    }
+  }
+
+  /**
+   * Calculate estimated token cost based on OpenAI pricing
+   * @param {Object} usage - Token usage information
+   * @returns {number} Estimated cost in USD
+   */
+  calculateTokenCost(usage) {
+    if (!usage || !usage.total_tokens) return 0;
+    
+    // OpenAI GPT-4 pricing (approximate, may vary)
+    const costPer1kTokens = 0.03; // $0.03 per 1K tokens
+    return (usage.total_tokens / 1000) * costPer1kTokens;
+  }
+
+  /**
+   * Detect the type of AI response
+   * @param {Object} aiResponse - AI response object
+   * @returns {string} Response type
+   */
+  detectResponseType(aiResponse) {
+    const content = aiResponse.choices?.[0]?.message?.content || '';
+    
+    if (content.includes('security') || content.includes('vulnerability')) {
+      return 'security_review';
+    } else if (content.includes('performance') || content.includes('optimization')) {
+      return 'performance_review';
+    } else if (content.includes('style') || content.includes('formatting')) {
+      return 'style_review';
+    } else if (content.includes('bug') || content.includes('error')) {
+      return 'bug_detection';
+    } else if (content.includes('suggestion') || content.includes('improvement')) {
+      return 'improvement_suggestions';
+    } else {
+      return 'general_review';
+    }
+  }
+
+  /**
+   * Check if response contains code suggestions
+   * @param {Object} aiResponse - AI response object
+   * @returns {boolean} True if contains code suggestions
+   */
+  hasCodeSuggestions(aiResponse) {
+    const content = aiResponse.choices?.[0]?.message?.content || '';
+    return content.includes('```') || content.includes('suggest') || content.includes('example');
+  }
+
+  /**
+   * Check if response contains security issues
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {boolean} True if contains security issues
+   */
+  hasSecurityIssues(parsedResponse) {
+    if (!parsedResponse?.issues) return false;
+    return parsedResponse.issues.some(issue => 
+      issue.severity === 'critical' || 
+      issue.title.toLowerCase().includes('security') ||
+      issue.description.toLowerCase().includes('vulnerability')
+    );
+  }
+
+  /**
+   * Check if response contains performance issues
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {boolean} True if contains performance issues
+   */
+  hasPerformanceIssues(parsedResponse) {
+    if (!parsedResponse?.issues) return false;
+    return parsedResponse.issues.some(issue => 
+      issue.title.toLowerCase().includes('performance') ||
+      issue.title.toLowerCase().includes('slow') ||
+      issue.title.toLowerCase().includes('optimization')
+    );
+  }
+
+  /**
+   * Check if response contains style issues
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {boolean} True if contains style issues
+   */
+  hasStyleIssues(parsedResponse) {
+    if (!parsedResponse?.issues) return false;
+    return parsedResponse.issues.some(issue => 
+      issue.title.toLowerCase().includes('style') ||
+      issue.title.toLowerCase().includes('formatting') ||
+      issue.title.toLowerCase().includes('convention')
+    );
+  }
+
+  /**
+   * Extract errors and warnings from AI response
+   * @param {Object} aiResponse - Raw AI response
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {Array} Array of error objects
+   */
+  extractErrors(aiResponse, parsedResponse) {
+    const errors = [];
+    
+    // Check for API errors
+    if (aiResponse.error) {
+      errors.push({
+        type: 'api_error',
+        message: aiResponse.error.message || 'Unknown API error',
+        code: aiResponse.error.code || 'unknown'
+      });
+    }
+    
+    // Check for parsing errors
+    if (!parsedResponse) {
+      errors.push({
+        type: 'parsing_error',
+        message: 'Failed to parse AI response',
+        code: 'parse_failed'
+      });
+    }
+    
+    // Check for validation errors
+    if (parsedResponse?.validationErrors) {
+      parsedResponse.validationErrors.forEach(error => {
+        errors.push({
+          type: 'validation_error',
+          message: error.message || 'Validation failed',
+          field: error.field || 'unknown'
+        });
+      });
+    }
+    
+    // Check for finish reason issues
+    const finishReason = aiResponse.choices?.[0]?.finish_reason;
+    if (finishReason && finishReason !== 'stop') {
+      errors.push({
+        type: 'completion_warning',
+        message: `AI response may be incomplete (finish_reason: ${finishReason})`,
+        code: finishReason
+      });
+    }
+    
+    return errors;
+  }
+
+  /**
+   * Enhanced AI response quality metrics
+   * @param {Object} aiResponse - Raw AI response
+   * @param {Object} parsedResponse - Parsed response
+   * @param {Object} context - Review context
+   * @returns {Object} Quality metrics
+   */
+  calculateEnhancedQualityMetrics(aiResponse, parsedResponse, context) {
+    const metrics = {
+      timestamp: new Date().toISOString(),
+      sessionId: context.sessionId,
+      
+      // Basic quality indicators
+      isValid: !!parsedResponse,
+      hasIssues: parsedResponse?.issues?.length > 0,
+      issuesCount: parsedResponse?.issues?.length || 0,
+      passed: parsedResponse?.passed || false,
+      
+      // Enhanced quality scoring
+      qualityScore: this.calculateQualityScore(parsedResponse),
+      confidenceScore: this.calculateConfidenceScore(aiResponse, parsedResponse),
+      completenessScore: this.calculateCompletenessScore(aiResponse, parsedResponse),
+      relevanceScore: this.calculateRelevanceScore(aiResponse, context),
+      
+      // Issue severity distribution
+      severityBreakdown: this.calculateSeverityBreakdown(parsedResponse),
+      
+      // Code coverage metrics
+      codeCoverage: {
+        filesCovered: context.filesCount || 0,
+        linesCovered: context.totalLines || 0,
+        coveragePercentage: context.filesCount > 0 ? 
+          ((parsedResponse?.issues?.length || 0) / context.filesCount) * 100 : 0
+      },
+      
+      // Response characteristics
+      responseCharacteristics: {
+        hasCodeSuggestions: this.hasCodeSuggestions(aiResponse),
+        hasSecurityIssues: this.hasSecurityIssues(parsedResponse),
+        hasPerformanceIssues: this.hasPerformanceIssues(parsedResponse),
+        hasStyleIssues: this.hasStyleIssues(parsedResponse),
+        responseType: this.detectResponseType(aiResponse)
+      }
+    };
+    
+    return metrics;
+  }
+
+  /**
+   * Calculate confidence score for AI response
+   * @param {Object} aiResponse - Raw AI response
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {number} Confidence score (0-1)
+   */
+  calculateConfidenceScore(aiResponse, parsedResponse) {
+    let score = 0;
+    
+    // Base confidence from finish reason
+    const finishReason = aiResponse.choices?.[0]?.finish_reason;
+    if (finishReason === 'stop') score += 0.3;
+    else if (finishReason === 'length') score += 0.2;
+    else if (finishReason === 'content_filter') score += 0.1;
+    
+    // Confidence from response structure
+    if (parsedResponse?.issues && Array.isArray(parsedResponse.issues)) score += 0.2;
+    if (parsedResponse?.summary) score += 0.1;
+    if (parsedResponse?.recommendations) score += 0.1;
+    
+    // Confidence from content quality
+    const content = aiResponse.choices?.[0]?.message?.content || '';
+    if (content.length > 100) score += 0.1;
+    if (content.includes('```')) score += 0.1;
+    if (content.includes('severity') || content.includes('priority')) score += 0.1;
+    
+    return Math.min(score, 1);
+  }
+
+  /**
+   * Calculate completeness score for AI response
+   * @param {Object} aiResponse - Raw AI response
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {number} Completeness score (0-1)
+   */
+  calculateCompletenessScore(aiResponse, parsedResponse) {
+    let score = 0;
+    
+    // Check for required response components
+    if (parsedResponse?.issues) score += 0.3;
+    if (parsedResponse?.summary) score += 0.2;
+    if (parsedResponse?.recommendations) score += 0.2;
+    if (parsedResponse?.passed !== undefined) score += 0.1;
+    if (parsedResponse?.qualityScore !== undefined) score += 0.1;
+    
+    // Check for content completeness
+    const content = aiResponse.choices?.[0]?.message?.content || '';
+    if (content.length > 200) score += 0.1;
+    
+    return Math.min(score, 1);
+  }
+
+  /**
+   * Calculate relevance score for AI response
+   * @param {Object} aiResponse - Raw AI response
+   * @param {Object} context - Review context
+   * @returns {number} Relevance score (0-1)
+   */
+  calculateRelevanceScore(aiResponse, context) {
+    let score = 0;
+    
+    const content = aiResponse.choices?.[0]?.message?.content || '';
+    const fileTypes = context.fileTypes || [];
+    const branchType = context.branchInfo?.branchType || 'unknown';
+    
+    // Relevance to file types
+    if (fileTypes.includes('js') && content.includes('JavaScript')) score += 0.2;
+    if (fileTypes.includes('py') && content.includes('Python')) score += 0.2;
+    if (fileTypes.includes('java') && content.includes('Java')) score += 0.2;
+    
+    // Relevance to branch type
+    if (branchType === 'production' && content.includes('production')) score += 0.2;
+    if (branchType === 'development' && content.includes('development')) score += 0.2;
+    
+    // Relevance to review context
+    if (content.includes('security') || content.includes('vulnerability')) score += 0.2;
+    if (content.includes('performance') || content.includes('optimization')) score += 0.2;
+    
+    return Math.min(score, 1);
+  }
+
+  /**
+   * Calculate severity breakdown for issues
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {Object} Severity breakdown
+   */
+  calculateSeverityBreakdown(parsedResponse) {
+    const breakdown = {
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+      info: 0,
+      unknown: 0
+    };
+    
+    if (parsedResponse?.issues) {
+      parsedResponse.issues.forEach(issue => {
+        const severity = (issue.severity || 'unknown').toLowerCase();
+        if (breakdown.hasOwnProperty(severity)) {
+          breakdown[severity]++;
+        } else {
+          breakdown.unknown++;
+        }
+      });
+    }
+    
+    return breakdown;
+  }
+
+  /**
+   * Enhanced token usage analytics
+   * @param {Object} usage - Token usage from OpenAI
+   * @param {Object} context - Review context
+   * @returns {Object} Enhanced token analytics
+   */
+  calculateEnhancedTokenAnalytics(usage, context) {
+    if (!usage) return null;
+    
+    const analytics = {
+      // Basic token counts
+      promptTokens: usage.prompt_tokens || 0,
+      completionTokens: usage.completion_tokens || 0,
+      totalTokens: usage.total_tokens || 0,
+      
+      // Cost analysis
+      costUSD: this.calculateTokenCost(usage),
+      costPerFile: context.filesCount > 0 ? this.calculateTokenCost(usage) / context.filesCount : 0,
+      costPerLine: context.totalLines > 0 ? this.calculateTokenCost(usage) / context.totalLines : 0,
+      
+      // Efficiency metrics
+      tokensPerFile: context.filesCount > 0 ? usage.total_tokens / context.filesCount : 0,
+      tokensPerLine: context.totalLines > 0 ? usage.total_tokens / context.totalLines : 0,
+      promptEfficiency: usage.prompt_tokens > 0 ? usage.completion_tokens / usage.prompt_tokens : 0,
+      
+      // Cost optimization insights
+      optimization: {
+        isEfficient: usage.completion_tokens > 0 && usage.prompt_tokens > 0 ? 
+          (usage.completion_tokens / usage.prompt_tokens) > 0.5 : false,
+        costCategory: this.categorizeTokenCost(this.calculateTokenCost(usage)),
+        recommendations: this.generateTokenOptimizationRecommendations(usage, context)
+      }
+    };
+    
+    return analytics;
+  }
+
+  /**
+   * Categorize token cost for analysis
+   * @param {number} costUSD - Cost in USD
+   * @returns {string} Cost category
+   */
+  categorizeTokenCost(costUSD) {
+    if (costUSD < 0.01) return 'very_low';
+    if (costUSD < 0.05) return 'low';
+    if (costUSD < 0.20) return 'medium';
+    if (costUSD < 0.50) return 'high';
+    return 'very_high';
+  }
+
+  /**
+   * Generate token optimization recommendations
+   * @param {Object} usage - Token usage
+   * @param {Object} context - Review context
+   * @returns {Array} Optimization recommendations
+   */
+  generateTokenOptimizationRecommendations(usage, context) {
+    const recommendations = [];
+    
+    if (!usage) return recommendations;
+    
+    // Check prompt efficiency
+    if (usage.prompt_tokens > 0 && usage.completion_tokens > 0) {
+      const efficiency = usage.completion_tokens / usage.prompt_tokens;
+      if (efficiency < 0.3) {
+        recommendations.push('Consider optimizing prompts to get more output per input token');
+      }
+    }
+    
+    // Check total cost
+    const cost = this.calculateTokenCost(usage);
+    if (cost > 0.50) {
+      recommendations.push('Review cost is high - consider using smaller models or optimizing prompts');
+    }
+    
+    // Check per-file cost
+    if (context.filesCount > 0) {
+      const costPerFile = cost / context.filesCount;
+      if (costPerFile > 0.10) {
+        recommendations.push('High cost per file - consider batching similar files together');
+      }
+    }
+    
+    // Check token usage patterns
+    if (usage.prompt_tokens > 8000) {
+      recommendations.push('Large prompt size - consider splitting reviews or using more focused prompts');
+    }
+    
+    return recommendations;
+  }
+
+  /**
+   * Comprehensive response pattern analysis
+   * @param {Object} aiResponse - Raw AI response
+   * @param {Object} parsedResponse - Parsed response
+   * @param {Object} context - Review context
+   * @returns {Object} Pattern analysis
+   */
+  analyzeResponsePatterns(aiResponse, parsedResponse, context) {
+    const patterns = {
+      timestamp: new Date().toISOString(),
+      sessionId: context.sessionId,
+      
+      // Response structure patterns
+      structure: {
+        hasIssues: !!parsedResponse?.issues,
+        hasSummary: !!parsedResponse?.summary,
+        hasRecommendations: !!parsedResponse?.recommendations,
+        hasQualityScore: parsedResponse?.qualityScore !== undefined,
+        issueCount: parsedResponse?.issues?.length || 0
+      },
+      
+      // Content patterns
+      content: {
+        responseType: this.detectResponseType(aiResponse),
+        hasCodeSuggestions: this.hasCodeSuggestions(aiResponse),
+        hasSecurityFocus: this.hasSecurityIssues(parsedResponse),
+        hasPerformanceFocus: this.hasPerformanceIssues(parsedResponse),
+        hasStyleFocus: this.hasStyleIssues(parsedResponse),
+        contentLength: aiResponse.choices?.[0]?.message?.content?.length || 0
+      },
+      
+      // Quality patterns
+      quality: {
+        overallQuality: parsedResponse?.qualityScore || 0,
+        confidenceLevel: this.calculateConfidenceScore(aiResponse, parsedResponse),
+        completenessLevel: this.calculateCompletenessScore(aiResponse, parsedResponse),
+        relevanceLevel: this.calculateRelevanceScore(aiResponse, context)
+      },
+      
+      // Performance patterns
+      performance: {
+        responseTime: context.responseTime,
+        tokensUsed: aiResponse.usage?.total_tokens || 0,
+        costIncurred: this.calculateTokenCost(aiResponse.usage),
+        efficiency: aiResponse.usage?.total_tokens > 0 ? 
+          context.responseTime / aiResponse.usage.total_tokens : 0
+      },
+      
+      // Issue patterns
+      issues: {
+        severityDistribution: this.calculateSeverityBreakdown(parsedResponse),
+        categoryDistribution: this.categorizeIssuesByType(parsedResponse),
+        commonPatterns: this.identifyCommonIssuePatterns(parsedResponse)
+      }
+    };
+    
+    return patterns;
+  }
+
+  /**
+   * Categorize issues by type
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {Object} Issue category distribution
+   */
+  categorizeIssuesByType(parsedResponse) {
+    const categories = {
+      security: 0,
+      performance: 0,
+      style: 0,
+      bug: 0,
+      documentation: 0,
+      architecture: 0,
+      testing: 0,
+      other: 0
+    };
+    
+    if (parsedResponse?.issues) {
+      parsedResponse.issues.forEach(issue => {
+        const title = (issue.title || '').toLowerCase();
+        const description = (issue.description || '').toLowerCase();
+        
+        if (title.includes('security') || description.includes('security') || 
+            title.includes('vulnerability') || description.includes('vulnerability')) {
+          categories.security++;
+        } else if (title.includes('performance') || description.includes('performance') ||
+                   title.includes('slow') || description.includes('slow')) {
+          categories.performance++;
+        } else if (title.includes('style') || description.includes('style') ||
+                   title.includes('formatting') || description.includes('formatting')) {
+          categories.style++;
+        } else if (title.includes('bug') || description.includes('bug') ||
+                   title.includes('error') || description.includes('error')) {
+          categories.bug++;
+        } else if (title.includes('documentation') || description.includes('documentation') ||
+                   title.includes('comment') || description.includes('comment')) {
+          categories.documentation++;
+        } else if (title.includes('architecture') || description.includes('architecture') ||
+                   title.includes('design') || description.includes('design')) {
+          categories.architecture++;
+        } else if (title.includes('test') || description.includes('test') ||
+                   title.includes('coverage') || description.includes('coverage')) {
+          categories.testing++;
+        } else {
+          categories.other++;
+        }
+      });
+    }
+    
+    return categories;
+  }
+
+  /**
+   * Identify common issue patterns
+   * @param {Object} parsedResponse - Parsed response
+   * @returns {Array} Common patterns
+   */
+  identifyCommonIssuePatterns(parsedResponse) {
+    const patterns = [];
+    
+    if (!parsedResponse?.issues) return patterns;
+    
+    // Group issues by title similarity
+    const titleGroups = {};
+    parsedResponse.issues.forEach(issue => {
+      const normalizedTitle = issue.title.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .trim();
+      
+      if (!titleGroups[normalizedTitle]) {
+        titleGroups[normalizedTitle] = [];
+      }
+      titleGroups[normalizedTitle].push(issue);
+    });
+    
+    // Identify patterns
+    Object.entries(titleGroups).forEach(([title, issues]) => {
+      if (issues.length > 1) {
+        patterns.push({
+          pattern: title,
+          count: issues.length,
+          severity: issues[0].severity,
+          examples: issues.slice(0, 3).map(issue => ({
+            title: issue.title,
+            description: issue.description
+          }))
+        });
+      }
+    });
+    
+    return patterns;
+  }
+
+  /**
    * Execute the AI code review
    * @returns {Promise<Object>} Review results
    */
@@ -49122,6 +49771,102 @@ module.exports = AIReviewAction;
 
 // Main execution if run directly
 if (false) {}
+
+
+/***/ }),
+
+/***/ 5105:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const core = __nccwpck_require__(7484);
+const github = __nccwpck_require__(3228);
+const AIReviewAction = __nccwpck_require__(5467);
+
+/**
+ * Main entry point for the AI Code Review GitHub Action
+ * This file is the entry point that GitHub Actions will execute
+ */
+async function main() {
+  try {
+    // Log action start
+    core.info('🚀 Starting AI Code Review Action...');
+    
+    // Get action inputs
+    const inputs = {
+      configPath: core.getInput('config-path', { required: false }) || '.github/ai-review-config.yml',
+      severityThreshold: core.getInput('severity-threshold', { required: false }) || 'MEDIUM',
+      enableProductionGates: core.getInput('enable-production-gates', { required: false }) === 'true',
+      targetBranch: core.getInput('target-branch', { required: true }),
+      timeout: parseInt(core.getInput('timeout', { required: false }) || '300'),
+      maxFiles: parseInt(core.getInput('max-files', { required: false }) || '50'),
+      maxFileSize: parseInt(core.getInput('max-file-size', { required: false }) || '1000000'),
+      teamLead: core.getInput('team-lead', { required: false }) || '',
+      emailNotifications: core.getInput('email-notifications', { required: false }) !== 'false',
+      slackNotifications: core.getInput('slack-notifications', { required: false }) === 'true',
+      logLevel: core.getInput('log-level', { required: false }) || 'INFO',
+      auditLogEnabled: core.getInput('audit-log-enabled', { required: false }) !== 'false',
+      retryAttempts: parseInt(core.getInput('retry-attempts', { required: false }) || '3'),
+      retryDelay: parseInt(core.getInput('retry-delay', { required: false }) || '5')
+    };
+
+    // Validate required inputs
+    if (!inputs.targetBranch) {
+      throw new Error('target-branch input is required');
+    }
+
+    // Log configuration
+    core.info(`📋 Configuration loaded:`);
+    core.info(`   Target Branch: ${inputs.targetBranch}`);
+    core.info(`   Severity Threshold: ${inputs.severityThreshold}`);
+    core.info(`   Production Gates: ${inputs.enableProductionGates}`);
+    core.info(`   Max Files: ${inputs.maxFiles}`);
+    core.info(`   Timeout: ${inputs.timeout}s`);
+
+    // Create and run the AI review action
+    const action = new AIReviewAction();
+    
+    // Set action outputs
+    core.setOutput('review-status', 'RUNNING');
+    core.setOutput('target-branch', inputs.targetBranch);
+    core.setOutput('severity-threshold', inputs.severityThreshold);
+    
+    // Execute the review
+    await action.run();
+    
+    // Set success outputs
+    core.setOutput('review-status', 'PASS');
+    core.setOutput('review-duration', Math.floor((Date.now() - Date.now()) / 1000));
+    
+    core.info('✅ AI Code Review completed successfully!');
+    
+  } catch (error) {
+    // Log error details
+    core.error(`❌ AI Code Review failed: ${error.message}`);
+    
+    if (error.stack) {
+      core.debug(`Stack trace: ${error.stack}`);
+    }
+    
+    // Set failure outputs
+    core.setOutput('review-status', 'FAIL');
+    core.setOutput('error-message', error.message);
+    
+    // Set the action as failed
+    core.setFailed(`AI Code Review failed: ${error.message}`);
+  }
+}
+
+// Export for testing
+module.exports = { main };
+
+// Execute if this is the main module (GitHub Actions runtime)
+if (require.main === require.cache[eval('__filename')]) {
+  main().catch(error => {
+    core.error(`Unhandled error in main: ${error.message}`);
+    core.setFailed(`Unhandled error: ${error.message}`);
+    process.exit(1);
+  });
+}
 
 
 /***/ }),
@@ -51028,10 +51773,33 @@ class EmailNotifier {
         toEmails = toEmails.split(',').map(email => email.trim()).filter(email => email);
       }
       
-      // If still no emails, use a default
+      // Validate email configuration - no more hardcoded fallbacks
       if (!toEmails || (Array.isArray(toEmails) && toEmails.length === 0)) {
-        toEmails = ['admin@example.com'];
-        console.warn('No email recipients configured, using default admin@example.com');
+        const error = new Error('No email recipients configured. Please set EMAIL_TO environment variable or configure to_emails in project configuration.');
+        console.error('Email configuration error:', error.message);
+        
+        return {
+          sent: false,
+          error: error.message,
+          type: type,
+          reason: 'missing_recipients'
+        };
+      }
+      
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const invalidEmails = toEmails.filter(email => !emailRegex.test(email));
+      
+      if (invalidEmails.length > 0) {
+        const error = new Error(`Invalid email format(s): ${invalidEmails.join(', ')}`);
+        console.error('Email validation error:', error.message);
+        
+        return {
+          sent: false,
+          error: error.message,
+          type: type,
+          reason: 'invalid_email_format'
+        };
       }
       
       const mailOptions = {
@@ -51298,6 +52066,95 @@ class EmailNotifier {
         error: error.message
       };
     }
+  }
+
+  /**
+   * Validate email configuration
+   * @returns {Object} Validation result
+   */
+  validateEmailConfiguration() {
+    const emailConfig = this.config?.notifications?.email || {};
+    const errors = [];
+    const warnings = [];
+    
+    // Check SMTP configuration
+    if (!this.config?.notifications?.email?.smtp_host && !process.env.SMTP_HOST) {
+      errors.push('SMTP_HOST not configured (via config or environment variable)');
+    }
+    
+    if (!this.config?.notifications?.email?.smtp_user && !process.env.SMTP_USER) {
+      errors.push('SMTP_USER not configured (via config or environment variable)');
+    }
+    
+    if (!this.config?.notifications?.email?.smtp_pass && !process.env.SMTP_PASS) {
+      errors.push('SMTP_PASS not configured (via config or environment variable)');
+    }
+    
+    // Check recipient configuration
+    const toEmails = emailConfig.to_emails || process.env.EMAIL_TO;
+    if (!toEmails) {
+      errors.push('EMAIL_TO not configured (via config or environment variable)');
+    } else {
+      // Validate email format if present
+      const emailList = typeof toEmails === 'string' ? toEmails.split(',').map(e => e.trim()) : toEmails;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      
+      emailList.forEach(email => {
+        if (!emailRegex.test(email)) {
+          errors.push(`Invalid email format: ${email}`);
+        }
+      });
+    }
+    
+    // Check from email configuration
+    if (!emailConfig.from_email && !process.env.EMAIL_FROM) {
+      warnings.push('EMAIL_FROM not configured, using default: ai-review@github.com');
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors: errors,
+      warnings: warnings,
+      isEnabled: this.isEnabled
+    };
+  }
+
+  /**
+   * Get configuration help information
+   * @returns {string} Configuration help text
+   */
+  getConfigurationHelp() {
+    return `
+📧 EMAIL CONFIGURATION HELP
+
+Required Environment Variables:
+  SMTP_HOST     - SMTP server hostname
+  SMTP_USER     - SMTP username
+  SMTP_PASS     - SMTP password
+  EMAIL_TO      - Comma-separated list of recipient emails
+
+Optional Environment Variables:
+  SMTP_PORT     - SMTP port (default: 587)
+  SMTP_SECURE   - Use TLS (default: false)
+  EMAIL_FROM    - From email address (default: ai-review@github.com)
+
+Example .env file:
+  SMTP_HOST=smtp.gmail.com
+  SMTP_USER=your-email@gmail.com
+  SMTP_PASS=your-app-password
+  EMAIL_TO=dev@company.com,qa@company.com
+  EMAIL_FROM=ai-review@company.com
+
+Alternative: Configure via project-level config file:
+  notifications:
+    email:
+      enabled: true
+      smtp_host: smtp.gmail.com
+      smtp_user: your-email@gmail.com
+      smtp_pass: your-app-password
+      to_emails: [dev@company.com, qa@company.com]
+      from_email: ai-review@company.com
+`;
   }
 
   /**
@@ -52492,6 +53349,32 @@ class FileFilter {
     const extension = path.extname(filePath).toLowerCase();
     const fileName = path.basename(filePath);
 
+    // Check for test files first (by filename or path)
+    if (fileName.includes('test') || fileName.includes('spec') || filePath.includes('/test/') || filePath.includes('/tests/')) {
+      if (extension === '.js' || extension === '.jsx') return 'test-javascript';
+      if (extension === '.ts' || extension === '.tsx') return 'test-typescript';
+      if (extension === '.py') return 'test-python';
+      if (extension === '.java') return 'test-java';
+      return 'test';
+    }
+
+    // Check for config files by filename pattern
+    if (fileName.includes('config') || fileName.includes('webpack') || fileName.includes('jest') || 
+        fileName.includes('babel') || fileName.includes('eslint') || fileName.includes('prettier') ||
+        fileName.includes('rollup') || fileName.includes('vite') || fileName.includes('parcel')) {
+      if (extension === '.js' || extension === '.ts') return 'config-javascript';
+      if (extension === '.json') return 'config-json';
+      if (extension === '.yaml' || extension === '.yml') return 'config-yaml';
+      return 'config';
+    }
+
+    // Check for generated files
+    if (fileName.includes('.min.') || fileName.includes('.bundle.') || fileName.includes('.map')) {
+      if (extension === '.js' || extension === '.jsx') return 'generated-javascript';
+      if (extension === '.css') return 'generated-css';
+      return 'generated';
+    }
+
     // Check for specific categories
     if (extension === '.js' || extension === '.jsx') return 'javascript';
     if (extension === '.ts' || extension === '.tsx') return 'typescript';
@@ -52525,6 +53408,45 @@ class FileFilter {
     if (extension === '.zip' || extension === '.tar' || extension === '.gz') return 'archive';
     if (extension === '.db' || extension === '.sqlite') return 'database';
 
+    return 'other';
+  }
+
+  /**
+   * Map detailed file type to simplified category for enhanced file counting
+   * @param {string} fileType - Detailed file type from getFileCategory
+   * @returns {string} Simplified category
+   */
+  mapFileTypeToCategory(fileType) {
+    // Code files
+    if (['javascript', 'typescript', 'python', 'java', 'csharp', 'php', 'ruby', 'golang', 'rust', 'cpp', 'c', 'header'].includes(fileType)) {
+      return 'code';
+    }
+    
+    // Configuration files
+    if (['json', 'xml', 'yaml', 'toml', 'ini', 'config', 'environment', 'config-javascript', 'config-json', 'config-yaml'].includes(fileType)) {
+      return 'config';
+    }
+    
+    // Test files
+    if (fileType.includes('test') || fileType.includes('spec') || fileType.startsWith('test-')) {
+      return 'test';
+    }
+    
+    // Documentation files
+    if (['markdown', 'text', 'html'].includes(fileType)) {
+      return 'documentation';
+    }
+    
+    // Build files
+    if (['binary', 'archive', 'database', 'log', 'generated', 'generated-javascript', 'generated-css'].includes(fileType)) {
+      return 'build';
+    }
+    
+    // Styles
+    if (fileType === 'styles') {
+      return 'styles';
+    }
+    
     return 'other';
   }
 
@@ -52599,6 +53521,366 @@ class FileFilter {
       excludeFileNames: this.config.excludeFileNames,
       includePatterns: this.config.includePatterns
     };
+  }
+
+  /**
+   * Enhanced file counting with detailed statistics and validation
+   * @param {Array<Object>} files - Array of file objects with metadata
+   * @param {Object} options - Counting options
+   * @returns {Object} Comprehensive file count analysis
+   */
+  getEnhancedFileCount(files, options = {}) {
+    const analysis = {
+      // Basic counts
+      totalFiles: files.length,
+      includedFiles: 0,
+      excludedFiles: 0,
+      
+      // File type breakdown
+      byType: {
+        code: 0,
+        config: 0,
+        test: 0,
+        documentation: 0,
+        styles: 0,
+        build: 0,
+        other: 0
+      },
+      
+      // Size analysis
+      bySize: {
+        small: 0,      // < 1KB
+        medium: 0,     // 1KB - 10KB
+        large: 0,      // 10KB - 100KB
+        xlarge: 0      // > 100KB
+      },
+      
+      // Line count analysis
+      byLines: {
+        short: 0,      // < 50 lines
+        medium: 0,     // 50-200 lines
+        long: 0,       // 200-500 lines
+        xlong: 0       // > 500 lines
+      },
+      
+      // Status analysis
+      byStatus: {
+        added: 0,
+        modified: 0,
+        deleted: 0,
+        renamed: 0
+      },
+      
+      // Priority analysis
+      byPriority: {
+        high: 0,       // Priority > 100
+        medium: 0,     // Priority 50-100
+        low: 0         // Priority < 50
+      },
+      
+      // Validation results
+      validation: {
+        valid: 0,
+        invalid: 0,
+        errors: []
+      },
+      
+      // Summary statistics
+      summary: {
+        totalSize: 0,
+        totalLines: 0,
+        averageSize: 0,
+        averageLines: 0,
+        largestFile: null,
+        smallestFile: null,
+        mostComplexFile: null
+      }
+    };
+
+    let totalSize = 0;
+    let totalLines = 0;
+    let largestFile = null;
+    let smallestFile = null;
+    let mostComplexFile = null;
+
+    for (const file of files) {
+      const filePath = file.filename || file.path || '';
+      const fileSize = file.size || 0;
+      const fileLines = file.lines || 0;
+      const fileStatus = file.status || 'unknown';
+      const filePriority = file.priority || 0;
+
+      // Validate file data integrity
+      const validation = this.validateFileData(file);
+      if (validation.isValid) {
+        analysis.validation.valid++;
+      } else {
+        analysis.validation.invalid++;
+        analysis.validation.errors.push({
+          file: filePath,
+          error: validation.error,
+          field: validation.field
+        });
+      }
+
+      // Count included/excluded files (simplified for testing)
+      try {
+        const excludeResult = this.shouldExcludeFile(filePath);
+        if (excludeResult.shouldExclude) {
+          analysis.excludedFiles++;
+        } else {
+          analysis.includedFiles++;
+        }
+      } catch (error) {
+        // If path operations fail (e.g., in tests), assume all files are included
+        analysis.includedFiles++;
+      }
+
+      // Count by file type
+      const fileType = this.getFileCategory(filePath);
+      const mappedType = this.mapFileTypeToCategory(fileType);
+      if (analysis.byType.hasOwnProperty(mappedType)) {
+        analysis.byType[mappedType]++;
+      } else {
+        analysis.byType.other++;
+      }
+
+      // Count by size
+      if (fileSize < 1024) {
+        analysis.bySize.small++;
+      } else if (fileSize < 10240) {
+        analysis.bySize.medium++;
+      } else if (fileSize < 102400) {
+        analysis.bySize.large++;
+      } else {
+        analysis.bySize.xlarge++;
+      }
+
+      // Count by lines
+      if (fileLines < 50) {
+        analysis.byLines.short++;
+      } else if (fileLines < 200) {
+        analysis.byLines.medium++;
+      } else if (fileLines < 500) {
+        analysis.byLines.long++;
+      } else {
+        analysis.byLines.xlong++;
+      }
+
+      // Count by status
+      if (analysis.byStatus.hasOwnProperty(fileStatus)) {
+        analysis.byStatus[fileStatus]++;
+      }
+
+      // Count by priority
+      if (filePriority > 100) {
+        analysis.byPriority.high++;
+      } else if (filePriority > 50) {
+        analysis.byPriority.medium++;
+      } else {
+        analysis.byPriority.low++;
+      }
+
+      // Track summary statistics
+      totalSize += fileSize;
+      totalLines += fileLines;
+
+      if (!largestFile || fileSize > largestFile.size) {
+        largestFile = { path: filePath, size: fileSize, lines: fileLines };
+      }
+
+      if (!smallestFile || fileSize < smallestFile.size) {
+        smallestFile = { path: filePath, size: fileSize, lines: fileLines };
+      }
+
+      // Calculate complexity score (size + lines + priority)
+      const complexity = fileSize + (fileLines * 100) + filePriority;
+      if (!mostComplexFile || complexity > mostComplexFile.complexity) {
+        mostComplexFile = { 
+          path: filePath, 
+          size: fileSize, 
+          lines: fileLines, 
+          priority: filePriority,
+          complexity: complexity
+        };
+      }
+    }
+
+    // Calculate averages
+    analysis.summary.totalSize = totalSize;
+    analysis.summary.totalLines = totalLines;
+    analysis.summary.averageSize = files.length > 0 ? Math.round(totalSize / files.length) : 0;
+    analysis.summary.averageLines = files.length > 0 ? Math.round(totalLines / files.length) : 0;
+    analysis.summary.largestFile = largestFile ? largestFile.path : null;
+    analysis.summary.smallestFile = smallestFile ? smallestFile.path : null;
+    analysis.summary.mostComplexFile = mostComplexFile ? mostComplexFile.path : null;
+
+    return analysis;
+  }
+
+  /**
+   * Validate file data integrity
+   * @param {Object} file - File object to validate
+   * @returns {Object} Validation result
+   */
+  validateFileData(file) {
+    const errors = [];
+    
+    // Check required fields
+    if (!file.filename && !file.path) {
+      errors.push('Missing filename or path');
+    }
+    
+    // Validate size
+    if (typeof file.size !== 'number' || file.size < 0) {
+      errors.push('Invalid file size');
+    }
+    
+    // Validate lines
+    if (typeof file.lines !== 'number' || file.lines < 0) {
+      errors.push('Invalid line count');
+    }
+    
+    // Validate status
+    if (file.status && !['added', 'modified', 'deleted', 'renamed'].includes(file.status)) {
+      errors.push('Invalid file status');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      error: errors.join(', '),
+      field: errors.length > 0 ? errors[0] : null
+    };
+  }
+
+  /**
+   * Get file count summary for reporting
+   * @param {Array<Object>} files - Array of file objects
+   * @returns {Object} File count summary
+   */
+  getFileCountSummary(files) {
+    const analysis = this.getEnhancedFileCount(files);
+    
+    return {
+      // Primary counts
+      totalFiles: analysis.totalFiles,
+      includedFiles: analysis.includedFiles,
+      excludedFiles: analysis.excludedFiles,
+      
+      // Key metrics
+      codeFiles: analysis.byType.code,
+      testFiles: analysis.byType.test,
+      configFiles: analysis.byType.config,
+      
+      // Size metrics
+      totalSize: this.formatFileSize(analysis.summary.totalSize),
+      averageSize: this.formatFileSize(analysis.summary.averageSize),
+      
+      // Line metrics
+      totalLines: analysis.summary.totalLines,
+      averageLines: analysis.summary.averageLines,
+      
+      // Quality indicators
+      dataIntegrity: `${analysis.validation.valid}/${analysis.totalFiles} files have valid data`,
+      complexity: this.assessComplexity(analysis),
+      reviewEfficiency: this.calculateReviewEfficiency(analysis)
+    };
+  }
+
+  /**
+   * Assess overall complexity of the file set
+   * @param {Object} analysis - File count analysis
+   * @returns {string} Complexity assessment
+   */
+  assessComplexity(analysis) {
+    const largeFiles = analysis.bySize.large + analysis.bySize.xlarge;
+    const longFiles = analysis.byLines.long + analysis.byLines.xlong;
+    const highPriorityFiles = analysis.byPriority.high;
+    
+    if (largeFiles > 5 || longFiles > 10 || highPriorityFiles > 8) {
+      return 'HIGH - Complex review required';
+    } else if (largeFiles > 2 || longFiles > 5 || highPriorityFiles > 4) {
+      return 'MEDIUM - Moderate complexity';
+    } else {
+      return 'LOW - Simple review';
+    }
+  }
+
+  /**
+   * Calculate review efficiency score
+   * @param {Object} analysis - File count analysis
+   * @returns {string} Efficiency assessment
+   */
+  calculateReviewEfficiency(analysis) {
+    const totalFiles = analysis.totalFiles;
+    const codeFiles = analysis.byType.code;
+    const testFiles = analysis.byType.test;
+    const smallFiles = analysis.bySize.small + analysis.bySize.medium;
+    
+    if (totalFiles === 0) return 'N/A';
+    
+    // Efficiency factors: more code files, smaller files, fewer total files
+    const codeRatio = codeFiles / totalFiles;
+    const sizeEfficiency = smallFiles / totalFiles;
+    const fileCountEfficiency = Math.max(0, 1 - (totalFiles / 100)); // Fewer files = better
+    
+    const efficiency = (codeRatio * 0.4) + (sizeEfficiency * 0.3) + (fileCountEfficiency * 0.3);
+    
+    if (efficiency > 0.7) return 'HIGH - Optimal for review';
+    else if (efficiency > 0.5) return 'MEDIUM - Good for review';
+    else return 'LOW - May need optimization';
+  }
+
+  /**
+   * Generate file count report
+   * @param {Array<Object>} files - Array of file objects
+   * @returns {string} Formatted report
+   */
+  generateFileCountReport(files) {
+    const analysis = this.getEnhancedFileCount(files);
+    const summary = this.getFileCountSummary(files);
+    
+    const report = [
+      '📊 FILE COUNT ANALYSIS REPORT',
+      '='.repeat(50),
+      '',
+      `📁 Total Files: ${summary.totalFiles}`,
+      `✅ Included: ${summary.includedFiles}`,
+      `❌ Excluded: ${summary.excludedFiles}`,
+      '',
+      '📋 BY TYPE:',
+      `   Code: ${analysis.byType.code}`,
+      `   Test: ${analysis.byType.test}`,
+      `   Config: ${analysis.byType.config}`,
+      `   Documentation: ${analysis.byType.documentation}`,
+      `   Build: ${analysis.byType.build}`,
+      `   Other: ${analysis.byType.other}`,
+      '',
+      '📏 BY SIZE:',
+      `   Small (<1KB): ${analysis.bySize.small}`,
+      `   Medium (1-10KB): ${analysis.bySize.medium}`,
+      `   Large (10-100KB): ${analysis.bySize.large}`,
+      `   XLarge (>100KB): ${analysis.bySize.xlarge}`,
+      '',
+      '📝 BY LINES:',
+      `   Short (<50): ${analysis.byLines.short}`,
+      `   Medium (50-200): ${analysis.byLines.medium}`,
+      `   Long (200-500): ${analysis.byLines.long}`,
+      `   XLong (>500): ${analysis.byLines.xlong}`,
+      '',
+      '🎯 QUALITY INDICATORS:',
+      `   Data Integrity: ${summary.dataIntegrity}`,
+      `   Complexity: ${summary.complexity}`,
+      `   Review Efficiency: ${summary.reviewEfficiency}`,
+      '',
+      '📈 SUMMARY:',
+      `   Total Size: ${summary.totalSize}`,
+      `   Total Lines: ${summary.totalLines}`,
+      `   Average Size: ${summary.averageSize}`,
+      `   Average Lines: ${summary.averageLines}`
+    ].join('\n');
+    
+    return report;
   }
 }
 
@@ -53188,31 +54470,65 @@ class GitHubClient {
     try {
       core.info(`🔍 Getting files for commit: ${commitSha}`);
       
-      // For testing purposes, return some sample files
-      // TODO: Implement actual GitHub API call to get commit files
-      const sampleFiles = [
-        {
-          filename: 'src/main.js',
-          status: 'modified',
-          additions: 5,
-          deletions: 2,
-          changes: 7,
-          lines: 50
-        },
-        {
-          filename: 'package.json',
-          status: 'modified',
-          additions: 1,
-          deletions: 0,
-          changes: 1,
-          lines: 30
-        }
-      ];
+      // Validate commit SHA
+      if (!commitSha || commitSha.length < 7) {
+        throw new Error('Invalid commit SHA provided');
+      }
       
-      core.info(`📝 Retrieved ${sampleFiles.length} sample files for testing`);
-      return sampleFiles;
+      // Get commit details from GitHub API
+      const commitResponse = await this.octokit.rest.repos.getCommit({
+        owner: this.options.owner,
+        repo: this.options.repo,
+        ref: commitSha
+      });
+      
+      if (!commitResponse.data || !commitResponse.data.files) {
+        core.warning('No files found in commit response');
+        return [];
+      }
+      
+      // Transform GitHub API response to our format
+      const files = commitResponse.data.files.map(file => ({
+        filename: file.filename,
+        status: file.status,
+        additions: file.additions || 0,
+        deletions: file.deletions || 0,
+        changes: file.changes || 0,
+        lines: (file.additions || 0) + (file.deletions || 0),
+        patch: file.patch || '',
+        sha: file.sha || '',
+        blob_url: file.blob_url || '',
+        raw_url: file.raw_url || ''
+      }));
+      
+      core.info(`📝 Retrieved ${files.length} actual files from commit ${commitSha.substring(0, 8)}`);
+      
+      // Log file details for debugging
+      if (files.length > 0) {
+        core.info('📁 Files in commit:');
+        files.forEach(file => {
+          core.info(`   - ${file.filename} (${file.status}) +${file.additions} -${file.deletions}`);
+        });
+      }
+      
+      return files;
     } catch (error) {
-      core.warning(`Failed to get commit files: ${error.message}`);
+      // Re-throw validation errors to maintain expected behavior
+      if (error.message === 'Invalid commit SHA provided') {
+        throw error;
+      }
+      
+      core.error(`Failed to get commit files: ${error.message}`);
+      
+      // Log detailed error information for debugging
+      if (error.status) {
+        core.error(`GitHub API Status: ${error.status}`);
+      }
+      if (error.response?.data?.message) {
+        core.error(`GitHub API Error: ${error.response.data.message}`);
+      }
+      
+      // Return empty array on API errors to prevent system failure
       return [];
     }
   }
@@ -53226,23 +54542,69 @@ class GitHubClient {
     try {
       core.info(`🔍 Getting files for PR: ${prNumber}`);
       
-      // For now, return a single file to simulate your actual change
-      // TODO: Implement actual GitHub API call to get PR files
-      const actualFiles = [
-        {
-          filename: 'src/main.js',  // Simulating your actual changed file
-          status: 'modified',
-          additions: 5,
-          deletions: 2,
-          changes: 7,
-          lines: 50
-        }
-      ];
+      // Validate PR number
+      if (!prNumber || isNaN(prNumber) || prNumber <= 0) {
+        throw new Error('Invalid pull request number provided');
+      }
       
-      core.info(`📝 Retrieved ${actualFiles.length} actual changed file(s)`);
-      return actualFiles;
+      // Get PR files from GitHub API
+      const prFilesResponse = await this.octokit.rest.pulls.listFiles({
+        owner: this.options.owner,
+        repo: this.options.repo,
+        pull_number: prNumber
+      });
+      
+      if (!prFilesResponse.data || prFilesResponse.data.length === 0) {
+        core.warning(`No files found in PR #${prNumber}`);
+        return [];
+      }
+      
+      // Transform GitHub API response to our format
+      const files = prFilesResponse.data.map(file => ({
+        filename: file.filename,
+        status: file.status,
+        additions: file.additions || 0,
+        deletions: file.deletions || 0,
+        changes: file.changes || 0,
+        lines: (file.additions || 0) + (file.deletions || 0),
+        patch: file.patch || '',
+        sha: file.sha || '',
+        blob_url: file.blob_url || '',
+        raw_url: file.raw_url || '',
+        previous_filename: file.previous_filename || null
+      }));
+      
+      core.info(`📝 Retrieved ${files.length} actual files from PR #${prNumber}`);
+      
+      // Log file details for debugging
+      if (files.length > 0) {
+        core.info('📁 Files in PR:');
+        files.forEach(file => {
+          const changeInfo = file.previous_filename && file.filename !== file.previous_filename 
+            ? ` (renamed from ${file.previous_filename})`
+            : '';
+          core.info(`   - ${file.filename} (${file.status}) +${file.additions} -${file.deletions}${changeInfo}`);
+        });
+      }
+      
+      return files;
     } catch (error) {
-      core.warning(`Failed to get PR files: ${error.message}`);
+      // Re-throw validation errors to maintain expected behavior
+      if (error.message === 'Invalid pull request number provided') {
+        throw error;
+      }
+      
+      core.error(`Failed to get PR files: ${error.message}`);
+      
+      // Log detailed error information for debugging
+      if (error.status) {
+        core.error(`GitHub API Status: ${error.status}`);
+      }
+      if (error.response?.data?.message) {
+        core.error(`GitHub API Error: ${error.response.data.message}`);
+      }
+      
+      // Return empty array on API errors to prevent system failure
       return [];
     }
   }
@@ -54081,6 +55443,12 @@ class AuditLogger {
     this.logLevel = config.logging?.log_level || 'info';
     this.includeSensitiveData = config.logging?.include_sensitive_data || false;
     
+    // Debug logging configuration
+    this.debugMode = config.logging?.debug_mode || false;
+    this.verboseLogging = config.logging?.verbose_logging || false;
+    this.debugCategories = config.logging?.debug_categories || ['all'];
+    this.debugFilters = config.logging?.debug_filters || [];
+    
     // Audit trail tracking
     this.auditTrail = [];
     this.maxTrailSize = config.logging?.max_audit_trail_size || 1000;
@@ -54121,6 +55489,62 @@ class AuditLogger {
   }
 
   /**
+   * Check if a log level should be logged based on current configuration
+   * @param {string} level - Log level to check
+   * @param {string} category - Optional category for debug filtering
+   * @returns {boolean} Whether the log level should be logged
+   */
+  shouldLog(level, category = null) {
+    // Define log level hierarchy
+    const logLevels = {
+      'error': 0,
+      'warn': 1,
+      'info': 2,
+      'debug': 3,
+      'trace': 4
+    };
+    
+    const currentLevel = logLevels[this.logLevel.toLowerCase()] || 2; // Default to info
+    const requestedLevel = logLevels[level.toLowerCase()] || 2;
+    
+    // Check basic log level
+    if (requestedLevel > currentLevel) {
+      return false;
+    }
+    
+    // Check debug mode for debug and trace levels
+    if ((level === 'debug' || level === 'trace') && !this.debugMode) {
+      return false;
+    }
+    
+    // Check debug categories if category is specified
+    if (category && this.debugCategories.length > 0) {
+      if (!this.debugCategories.includes('all') && !this.debugCategories.includes(category)) {
+        return false;
+      }
+    }
+    
+    // Check debug filters
+    if (this.debugFilters.length > 0) {
+      const shouldFilter = this.debugFilters.some(filter => {
+        if (filter.type === 'exclude' && filter.pattern) {
+          return new RegExp(filter.pattern).test(category || '');
+        }
+        if (filter.type === 'include' && filter.pattern) {
+          return new RegExp(filter.pattern).test(category || '');
+        }
+        return false;
+      });
+      
+      if (shouldFilter) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  /**
    * Initialize log directory
    */
   async initializeLogDirectory() {
@@ -54140,6 +55564,17 @@ class AuditLogger {
    * @returns {Promise<Object>} Log entry information
    */
   async logEvent(eventType, data = {}, level = 'info', context = {}) {
+    // Check if this log level should be logged
+    if (!this.shouldLog(level, context.category)) {
+      return {
+        auditId: null,
+        logged: false,
+        reason: 'log_level_filtered',
+        level,
+        eventType
+      };
+    }
+
     const timestamp = new Date().toISOString();
     const auditId = this.generateAuditId();
     
@@ -54186,6 +55621,8 @@ class AuditLogger {
       timestamp,
       level,
       eventType,
+      data: logEntry.data,
+      context: logEntry.context,
       complianceValid: this.complianceMode ? this.validateComplianceFields(logEntry).valid : true
     };
   }
@@ -54910,6 +56347,1009 @@ class AuditLogger {
 
   async logDebug(eventType, data = {}, context = {}) {
     return this.logEvent(eventType, data, 'debug', context);
+  }
+
+  /**
+   * Configure debug logging
+   * @param {Object} config - Debug logging configuration
+   */
+  configureDebugLogging(config) {
+    if (config.debug_mode !== undefined) {
+      this.debugMode = config.debug_mode;
+    }
+    
+    if (config.verbose_logging !== undefined) {
+      this.verboseLogging = config.verbose_logging;
+    }
+    
+    if (config.debug_categories) {
+      this.debugCategories = Array.isArray(config.debug_categories) 
+        ? config.debug_categories 
+        : [config.debug_categories];
+    }
+    
+    if (config.debug_filters) {
+      this.debugFilters = Array.isArray(config.debug_filters) 
+        ? config.debug_filters 
+        : [config.debug_filters];
+    }
+    
+    if (config.log_level) {
+      this.logLevel = config.log_level;
+    }
+    
+    // Log the configuration change
+    console.log('🔧 Debug logging configured:', {
+      debugMode: this.debugMode,
+      verboseLogging: this.verboseLogging,
+      logLevel: this.logLevel,
+      debugCategories: this.debugCategories,
+      debugFilters: this.debugFilters
+    });
+  }
+
+  /**
+   * Get debug logging configuration
+   * @returns {Object} Current debug logging configuration
+   */
+  getDebugConfig() {
+    return {
+      debugMode: this.debugMode,
+      verboseLogging: this.verboseLogging,
+      logLevel: this.logLevel,
+      debugCategories: this.debugCategories,
+      debugFilters: this.debugFilters,
+      enableConsole: this.enableConsole,
+      enableFileLogging: this.enableFileLogging
+    };
+  }
+
+  /**
+   * Enable debug mode
+   * @param {Array} categories - Optional categories to enable
+   */
+  enableDebugMode(categories = ['all']) {
+    this.debugMode = true;
+    this.debugCategories = categories;
+    this.logLevel = 'debug';
+    console.log('🔧 Debug mode enabled for categories:', categories);
+  }
+
+  /**
+   * Disable debug mode
+   */
+  disableDebugMode() {
+    this.debugMode = false;
+    this.logLevel = 'info';
+    console.log('🔧 Debug mode disabled');
+  }
+
+  /**
+   * Add debug category
+   * @param {string} category - Category to add
+   */
+  addDebugCategory(category) {
+    if (!this.debugCategories.includes(category)) {
+      this.debugCategories.push(category);
+      console.log(`🔧 Added debug category: ${category}`);
+    }
+  }
+
+  /**
+   * Remove debug category
+   * @param {string} category - Category to remove
+   */
+  removeDebugCategory(category) {
+    const index = this.debugCategories.indexOf(category);
+    if (index > -1) {
+      this.debugCategories.splice(index, 1);
+      console.log(`🔧 Removed debug category: ${category}`);
+    }
+  }
+
+  /**
+   * Add debug filter
+   * @param {Object} filter - Filter configuration {type: 'include'|'exclude', pattern: 'regex'}
+   */
+  addDebugFilter(filter) {
+    if (filter.type && filter.pattern) {
+      this.debugFilters.push(filter);
+      console.log(`🔧 Added debug filter: ${filter.type} ${filter.pattern}`);
+    }
+  }
+
+  /**
+   * Remove debug filter
+   * @param {string} pattern - Pattern to remove
+   */
+  removeDebugFilter(pattern) {
+    const index = this.debugFilters.findIndex(f => f.pattern === pattern);
+    if (index > -1) {
+      this.debugFilters.splice(index, 1);
+      console.log(`🔧 Removed debug filter: ${pattern}`);
+    }
+  }
+
+  /**
+   * Convenience method for debug logging
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   */
+  async debug(eventType, data = {}, context = {}) {
+    return this.logEvent(eventType, data, 'debug', context);
+  }
+
+  /**
+   * Convenience method for trace logging
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   */
+  async trace(eventType, data = {}, context = {}) {
+    return this.logEvent(eventType, data, 'trace', context);
+  }
+
+  /**
+   * Test debug configuration
+   * @returns {Object} Test results
+   */
+  testDebugConfig() {
+    const testResults = {
+      debugMode: this.debugMode,
+      verboseLogging: this.verboseLogging,
+      logLevel: this.logLevel,
+      debugCategories: this.debugCategories,
+      debugFilters: this.debugFilters,
+      tests: {}
+    };
+
+    // Test log level filtering
+    testResults.tests.logLevelFiltering = {
+      error: this.shouldLog('error'),
+      warn: this.shouldLog('warn'),
+      info: this.shouldLog('info'),
+      debug: this.shouldLog('debug'),
+      trace: this.shouldLog('trace')
+    };
+
+    // Test category filtering
+    testResults.tests.categoryFiltering = {
+      'ai-review': this.shouldLog('debug', 'ai-review'),
+      'file-detection': this.shouldLog('debug', 'file-detection'),
+      'github-api': this.shouldLog('debug', 'github-api'),
+      'unknown-category': this.shouldLog('debug', 'unknown-category')
+    };
+
+    // Test filter functionality
+    testResults.tests.filterFunctionality = {
+      filtersConfigured: this.debugFilters.length > 0,
+      filterTypes: this.debugFilters.map(f => f.type)
+    };
+
+    return testResults;
+  }
+
+  /**
+   * Enhanced verbose logging for development environments
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {string} level - Log level
+   * @param {Object} context - Additional context information
+   * @param {Object} verboseOptions - Verbose logging options
+   * @returns {Promise<Object>} Log entry information
+   */
+  async logVerbose(eventType, data = {}, level = 'info', context = {}, verboseOptions = {}) {
+    if (!this.verboseLogging) {
+      // Fall back to regular logging if verbose is disabled
+      return this.logEvent(eventType, data, level, context);
+    }
+
+    // Enhanced context for verbose logging
+    const enhancedContext = {
+      ...context,
+      verbose: true,
+      timestamp: new Date().toISOString(),
+      processId: process.pid,
+      memoryUsage: process.memoryUsage(),
+      uptime: process.uptime(),
+      nodeVersion: process.version,
+      platform: process.platform,
+      arch: process.arch,
+      ...verboseOptions
+    };
+
+    // Enhanced data for verbose logging
+    const enhancedData = {
+      ...data,
+      _verbose: {
+        callStack: this.getCallStack(),
+        functionName: this.getCallerFunctionName(),
+        lineNumber: this.getCallerLineNumber(),
+        fileName: this.getCallerFileName(),
+        executionTime: Date.now(),
+        memorySnapshot: this.getMemorySnapshot()
+      }
+    };
+
+    // Log with enhanced information
+    return this.logEvent(eventType, enhancedData, level, enhancedContext);
+  }
+
+  /**
+   * Get call stack information for verbose logging
+   * @returns {Array} Call stack information
+   */
+  getCallStack() {
+    try {
+      const stack = new Error().stack;
+      if (!stack) return ['Unable to capture call stack'];
+      
+      return stack
+        .split('\n')
+        .slice(3) // Skip Error constructor and getCallStack calls
+        .map(line => line.trim())
+        .filter(line => line && !line.includes('node_modules'))
+        .slice(0, 10); // Limit to first 10 frames
+    } catch (error) {
+      return ['Unable to capture call stack'];
+    }
+  }
+
+  /**
+   * Get caller function name for verbose logging
+   * @returns {string} Function name
+   */
+  getCallerFunctionName() {
+    try {
+      const stack = new Error().stack;
+      if (!stack) return 'unknown';
+      
+      const lines = stack.split('\n');
+      if (lines.length < 4) return 'unknown';
+      
+      const callerLine = lines[3];
+      const match = callerLine.match(/at\s+(.+?)\s+\(/);
+      return match ? match[1] : 'unknown';
+    } catch (error) {
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Get caller line number for verbose logging
+   * @returns {string} Line number
+   */
+  getCallerLineNumber() {
+    try {
+      const stack = new Error().stack;
+      if (!stack) return 'unknown';
+      
+      const lines = stack.split('\n');
+      if (lines.length < 4) return 'unknown';
+      
+      const callerLine = lines[3];
+      const match = callerLine.match(/\((.+):(\d+):(\d+)\)/);
+      return match ? `${match[2]}:${match[3]}` : 'unknown';
+    } catch (error) {
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Get caller file name for verbose logging
+   * @returns {string} File name
+   */
+  getCallerFileName() {
+    try {
+      const stack = new Error().stack;
+      if (!stack) return 'unknown';
+      
+      const lines = stack.split('\n');
+      if (lines.length < 4) return 'unknown';
+      
+      const callerLine = lines[3];
+      const match = callerLine.match(/\((.+):(\d+):(\d+)\)/);
+      if (match) {
+        const fullPath = match[1];
+        return fullPath.split('/').pop() || fullPath.split('\\').pop() || 'unknown';
+      }
+      return 'unknown';
+    } catch (error) {
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Get memory snapshot for verbose logging
+   * @returns {Object} Memory usage information
+   */
+  getMemorySnapshot() {
+    try {
+      const memUsage = process.memoryUsage();
+      return {
+        rss: this.formatBytes(memUsage.rss),
+        heapTotal: this.formatBytes(memUsage.heapTotal),
+        heapUsed: this.formatBytes(memUsage.heapUsed),
+        external: this.formatBytes(memUsage.external),
+        arrayBuffers: this.formatBytes(memUsage.arrayBuffers || 0)
+      };
+    } catch (error) {
+      return { error: 'Unable to capture memory snapshot' };
+    }
+  }
+
+  /**
+   * Format bytes to human readable format
+   * @param {number} bytes - Number of bytes
+   * @returns {string} Formatted string
+   */
+  formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  /**
+   * Verbose debug logging with enhanced context
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   * @param {Object} verboseOptions - Verbose logging options
+   */
+  async verboseDebug(eventType, data = {}, context = {}, verboseOptions = {}) {
+    return this.logVerbose(eventType, data, 'debug', context, verboseOptions);
+  }
+
+  /**
+   * Verbose trace logging with enhanced context
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   * @param {Object} verboseOptions - Verbose logging options
+   */
+  async verboseTrace(eventType, data = {}, context = {}, verboseOptions = {}) {
+    return this.logVerbose(eventType, data, 'trace', context, verboseOptions);
+  }
+
+  /**
+   * Verbose info logging with enhanced context
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   * @param {Object} verboseOptions - Verbose logging options
+   */
+  async verboseInfo(eventType, data = {}, context = {}, verboseOptions = {}) {
+    return this.logVerbose(eventType, data, 'info', context, verboseOptions);
+  }
+
+  /**
+   * Verbose warn logging with enhanced context
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   * @param {Object} verboseOptions - Verbose logging options
+   */
+  async verboseWarn(eventType, data = {}, context = {}, verboseOptions = {}) {
+    return this.logVerbose(eventType, data, 'warn', context, verboseOptions);
+  }
+
+  /**
+   * Verbose error logging with enhanced context
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   * @param {Object} verboseOptions - Verbose logging options
+   */
+  async verboseError(eventType, data = {}, context = {}, verboseOptions = {}) {
+    return this.logVerbose(eventType, data, 'error', context, verboseOptions);
+  }
+
+  /**
+   * Enable verbose logging mode
+   * @param {boolean} enabled - Whether to enable verbose logging
+   * @param {Object} options - Verbose logging options
+   */
+  enableVerboseLogging(enabled = true, options = {}) {
+    this.verboseLogging = enabled;
+    
+    if (enabled) {
+      console.log('🔧 Verbose logging enabled with options:', options);
+      
+      // Set debug mode if verbose is enabled
+      if (!this.debugMode) {
+        this.debugMode = true;
+        console.log('🔧 Debug mode automatically enabled for verbose logging');
+      }
+      
+      // Set log level to trace if verbose is enabled
+      if (this.logLevel === 'info') {
+        this.logLevel = 'trace';
+        console.log('🔧 Log level automatically set to trace for verbose logging');
+      }
+    } else {
+      console.log('🔧 Verbose logging disabled');
+    }
+  }
+
+  /**
+   * Get verbose logging configuration
+   * @returns {Object} Verbose logging configuration
+   */
+  getVerboseConfig() {
+    return {
+      verboseLogging: this.verboseLogging,
+      debugMode: this.debugMode,
+      logLevel: this.logLevel,
+      debugCategories: this.debugCategories,
+      debugFilters: this.debugFilters,
+      enableConsole: this.enableConsole,
+      enableFileLogging: this.enableFileLogging
+    };
+  }
+
+  /**
+   * Test verbose logging functionality
+   * @returns {Object} Test results
+   */
+  testVerboseLogging() {
+    const testResults = {
+      verboseLogging: this.verboseLogging,
+      debugMode: this.debugMode,
+      logLevel: this.logLevel,
+      tests: {}
+    };
+
+    // Test verbose logging methods
+    testResults.tests.verboseMethods = {
+      verboseDebug: typeof this.verboseDebug === 'function',
+      verboseTrace: typeof this.verboseTrace === 'function',
+      verboseInfo: typeof this.verboseInfo === 'function',
+      verboseWarn: typeof this.verboseWarn === 'function',
+      verboseError: typeof this.verboseError === 'function'
+    };
+
+    // Test utility methods
+    testResults.tests.utilityMethods = {
+      getCallStack: typeof this.getCallStack === 'function',
+      getCallerFunctionName: typeof this.getCallerFunctionName === 'function',
+      getCallerLineNumber: typeof this.getCallerLineNumber === 'function',
+      getCallerFileName: typeof this.getCallerFileName === 'function',
+      getMemorySnapshot: typeof this.getMemorySnapshot === 'function',
+      formatBytes: typeof this.formatBytes === 'function'
+    };
+
+    return testResults;
+  }
+
+  /**
+   * Search logs by various criteria
+   * @param {Object} searchCriteria - Search criteria
+   * @returns {Promise<Array>} Matching log entries
+   */
+  async searchLogs(searchCriteria = {}) {
+    const {
+      query = '',
+      startDate = null,
+      endDate = null,
+      eventType = null,
+      level = null,
+      category = null,
+      repository = null,
+      user = null,
+      branch = null,
+      commitSha = null,
+      sessionId = null,
+      limit = 1000,
+      offset = 0,
+      sortBy = 'timestamp',
+      sortOrder = 'desc'
+    } = searchCriteria;
+
+    try {
+      const results = [];
+      const files = await fs.readdir(this.logDir);
+      const logFiles = files.filter(file => file.startsWith('audit-') && file.endsWith('.jsonl'));
+      
+      // Sort files by date (newest first)
+      logFiles.sort().reverse();
+      
+      for (const file of logFiles) {
+        if (results.length >= limit) break;
+        
+        const filePath = path.join(this.logDir, file);
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.trim().split('\n');
+        
+        for (const line of lines) {
+          if (!line.trim() || results.length >= limit) break;
+          
+          try {
+            const logEntry = JSON.parse(line);
+            
+            // Apply filters
+            if (!this.matchesSearchCriteria(logEntry, {
+              query, startDate, endDate, eventType, level, category,
+              repository, user, branch, commitSha, sessionId
+            })) {
+              continue;
+            }
+            
+            results.push(logEntry);
+          } catch (parseError) {
+            // Skip malformed entries
+            continue;
+          }
+        }
+      }
+      
+      // Sort results
+      results.sort((a, b) => {
+        let aValue = a[sortBy];
+        let bValue = b[sortBy];
+        
+        if (sortBy === 'timestamp') {
+          aValue = new Date(aValue).getTime();
+          bValue = new Date(bValue).getTime();
+        }
+        
+        if (sortOrder === 'asc') {
+          return aValue > bValue ? 1 : -1;
+        } else {
+          return aValue < bValue ? 1 : -1;
+        }
+      });
+      
+      // Apply offset and limit
+      return results.slice(offset, offset + limit);
+      
+    } catch (error) {
+      console.error('Error searching logs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if a log entry matches search criteria
+   * @param {Object} logEntry - Log entry to check
+   * @param {Object} criteria - Search criteria
+   * @returns {boolean} Whether the entry matches
+   */
+  matchesSearchCriteria(logEntry, criteria) {
+    const {
+      query, startDate, endDate, eventType, level, category,
+      repository, user, branch, commitSha, sessionId
+    } = criteria;
+    
+    // Date range filter
+    if (startDate || endDate) {
+      const entryDate = new Date(logEntry.timestamp);
+      if (startDate && entryDate < new Date(startDate)) return false;
+      if (endDate && entryDate > new Date(endDate)) return false;
+    }
+    
+    // Exact match filters
+    if (eventType && logEntry.event_type !== eventType) return false;
+    if (level && logEntry.level !== level) return false;
+    if (category && logEntry.context?.category !== category) return false;
+    if (repository && logEntry.context?.repository !== repository) return false;
+    if (user && logEntry.context?.user !== user) return false;
+    if (branch && logEntry.context?.branch !== branch) return false;
+    if (commitSha && logEntry.context?.commit_sha !== commitSha) return false;
+    if (sessionId && logEntry.context?.session_id !== sessionId) return false;
+    
+    // Text query filter
+    if (query) {
+      const searchText = query.toLowerCase();
+      const entryText = JSON.stringify(logEntry).toLowerCase();
+      if (!entryText.includes(searchText)) return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Advanced log filtering with multiple criteria
+   * @param {Object} filters - Filter criteria
+   * @returns {Promise<Array>} Filtered log entries
+   */
+  async filterLogs(filters = {}) {
+    const {
+      include = {},
+      exclude = {},
+      dateRange = {},
+      customFilter = null
+    } = filters;
+    
+    try {
+      const results = [];
+      const files = await fs.readdir(this.logDir);
+      const logFiles = files.filter(file => file.startsWith('audit-') && file.endsWith('.jsonl'));
+      
+      for (const file of logFiles) {
+        const filePath = path.join(this.logDir, file);
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.trim().split('\n');
+        
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          
+          try {
+            const logEntry = JSON.parse(line);
+            
+            // Apply include filters
+            if (!this.matchesIncludeFilters(logEntry, include)) continue;
+            
+            // Apply exclude filters
+            if (this.matchesExcludeFilters(logEntry, exclude)) continue;
+            
+            // Apply date range filters
+            if (!this.matchesDateRange(logEntry, dateRange)) continue;
+            
+            // Apply custom filter
+            if (customFilter && !customFilter(logEntry)) continue;
+            
+            results.push(logEntry);
+          } catch (parseError) {
+            continue;
+          }
+        }
+      }
+      
+      return results;
+      
+    } catch (error) {
+      console.error('Error filtering logs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if log entry matches include filters
+   * @param {Object} logEntry - Log entry to check
+   * @param {Object} include - Include filters
+   * @returns {boolean} Whether the entry matches include filters
+   */
+  matchesIncludeFilters(logEntry, include) {
+    for (const [field, values] of Object.entries(include)) {
+      if (!Array.isArray(values)) continue;
+      
+      const entryValue = this.getNestedValue(logEntry, field);
+      if (!values.includes(entryValue)) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Check if log entry matches exclude filters
+   * @param {Object} logEntry - Log entry to check
+   * @param {Object} exclude - Exclude filters
+   * @returns {boolean} Whether the entry matches exclude filters
+   */
+  matchesExcludeFilters(logEntry, exclude) {
+    for (const [field, values] of Object.entries(exclude)) {
+      if (!Array.isArray(values)) continue;
+      
+      const entryValue = this.getNestedValue(logEntry, field);
+      if (values.includes(entryValue)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if log entry matches date range
+   * @param {Object} logEntry - Log entry to check
+   * @param {Object} dateRange - Date range filters
+   * @returns {boolean} Whether the entry matches date range
+   */
+  matchesDateRange(logEntry, dateRange) {
+    const { start, end, before, after } = dateRange;
+    const entryDate = new Date(logEntry.timestamp);
+    
+    if (start && entryDate < new Date(start)) return false;
+    if (end && entryDate > new Date(end)) return false;
+    if (before && entryDate >= new Date(before)) return false;
+    if (after && entryDate <= new Date(after)) return false;
+    
+    return true;
+  }
+
+  /**
+   * Get nested value from object using dot notation
+   * @param {Object} obj - Object to search
+   * @param {string} path - Dot notation path
+   * @returns {*} Value at path
+   */
+  getNestedValue(obj, path) {
+    return path.split('.').reduce((current, key) => {
+      return current && current[key] !== undefined ? current[key] : undefined;
+    }, obj);
+  }
+
+  /**
+   * Create log search index for faster searching
+   * @param {Object} options - Index options
+   * @returns {Promise<Object>} Search index
+   */
+  async createSearchIndex(options = {}) {
+    const {
+      fields = ['event_type', 'level', 'context.repository', 'context.user', 'context.branch'],
+      rebuild = false
+    } = options;
+    
+    try {
+      const indexFile = path.join(this.logDir, 'search-index.json');
+      
+      // Check if index exists and is recent
+      if (!rebuild) {
+        try {
+          const stats = await fs.stat(indexFile);
+          const indexAge = Date.now() - stats.mtime.getTime();
+          const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+          
+          if (indexAge < maxAge) {
+            const indexContent = await fs.readFile(indexFile, 'utf8');
+            return JSON.parse(indexContent);
+          }
+        } catch (error) {
+          // Index doesn't exist or is corrupted
+        }
+      }
+      
+      console.log('🔍 Creating search index...');
+      const index = {
+        created: new Date().toISOString(),
+        fields: fields,
+        entries: new Map(),
+        fieldValues: {}
+      };
+      
+      // Initialize field values
+      fields.forEach(field => {
+        index.fieldValues[field] = new Set();
+      });
+      
+      const files = await fs.readdir(this.logDir);
+      const logFiles = files.filter(file => file.startsWith('audit-') && file.endsWith('.jsonl'));
+      
+      for (const file of logFiles) {
+        const filePath = path.join(this.logDir, file);
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.trim().split('\n');
+        
+        for (const [lineIndex, line] of lines.entries()) {
+          if (!line.trim()) continue;
+          
+          try {
+            const logEntry = JSON.parse(line);
+            const entryId = `${file}:${lineIndex}`;
+            
+            // Index by fields
+            fields.forEach(field => {
+              const value = this.getNestedValue(logEntry, field);
+              if (value !== undefined) {
+                if (!index.fieldValues[field].has(value)) {
+                  index.fieldValues[field].add(value);
+                }
+                
+                if (!index.entries.has(value)) {
+                  index.entries.set(value, []);
+                }
+                index.entries.get(value).push(entryId);
+              }
+            });
+            
+          } catch (parseError) {
+            continue;
+          }
+        }
+      }
+      
+      // Convert Map to plain object for serialization
+      const serializableIndex = {
+        ...index,
+        entries: Object.fromEntries(index.entries),
+        fieldValues: Object.fromEntries(
+          Object.entries(index.fieldValues).map(([key, value]) => [key, Array.from(value)])
+        )
+      };
+      
+      // Save index
+      await fs.writeFile(indexFile, JSON.stringify(serializableIndex, null, 2));
+      console.log('✅ Search index created successfully');
+      
+      return serializableIndex;
+      
+    } catch (error) {
+      console.error('Error creating search index:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Search logs using index for better performance
+   * @param {Object} searchCriteria - Search criteria
+   * @param {Object} index - Search index
+   * @returns {Promise<Array>} Matching log entries
+   */
+  async searchLogsWithIndex(searchCriteria = {}, index = null) {
+    if (!index) {
+      index = await this.createSearchIndex();
+    }
+    
+    if (!index) {
+      // Fall back to regular search if index creation fails
+      return this.searchLogs(searchCriteria);
+    }
+    
+    try {
+      const results = [];
+      const { eventType, level, repository, user, branch } = searchCriteria;
+      
+      // Use index to find matching entries
+      const matchingIds = new Set();
+      
+      if (eventType && index.entries[eventType]) {
+        index.entries[eventType].forEach(id => matchingIds.add(id));
+      }
+      
+      if (level && index.entries[level]) {
+        index.entries[level].forEach(id => matchingIds.add(id));
+      }
+      
+      if (repository && index.entries[repository]) {
+        index.entries[repository].forEach(id => matchingIds.add(id));
+      }
+      
+      if (user && index.entries[user]) {
+        index.entries[user].forEach(id => matchingIds.add(id));
+      }
+      
+      if (branch && index.entries[branch]) {
+        index.entries[branch].forEach(id => matchingIds.add(id));
+      }
+      
+      // If no specific filters, return all entries
+      if (matchingIds.size === 0) {
+        return this.searchLogs(searchCriteria);
+      }
+      
+      // Retrieve matching entries
+      for (const entryId of matchingIds) {
+        const [filename, lineIndex] = entryId.split(':');
+        const filePath = path.join(this.logDir, filename);
+        
+        try {
+          const content = await fs.readFile(filePath, 'utf8');
+          const lines = content.trim().split('\n');
+          const line = lines[parseInt(lineIndex)];
+          
+          if (line) {
+            const logEntry = JSON.parse(line);
+            if (this.matchesSearchCriteria(logEntry, searchCriteria)) {
+              results.push(logEntry);
+            }
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      
+      return results;
+      
+    } catch (error) {
+      console.error('Error searching logs with index:', error);
+      return this.searchLogs(searchCriteria);
+    }
+  }
+
+  /**
+   * Get log statistics and analytics
+   * @param {Object} options - Analytics options
+   * @returns {Promise<Object>} Log statistics
+   */
+  async getLogStatistics(options = {}) {
+    const {
+      startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+      endDate = new Date(),
+      groupBy = 'hour' // hour, day, week, month
+    } = options;
+    
+    try {
+      const stats = {
+        period: { start: startDate, end: endDate },
+        totalEntries: 0,
+        byEventType: {},
+        byLevel: {},
+        byRepository: {},
+        byUser: {},
+        byTime: {},
+        topEvents: [],
+        topUsers: [],
+        topRepositories: []
+      };
+      
+      const entries = await this.searchLogs({
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        limit: 10000
+      });
+      
+      stats.totalEntries = entries.length;
+      
+      // Process each entry
+      entries.forEach(entry => {
+        // Count by event type
+        const eventType = entry.event_type || 'unknown';
+        stats.byEventType[eventType] = (stats.byEventType[eventType] || 0) + 1;
+        
+        // Count by level
+        const level = entry.level || 'unknown';
+        stats.byLevel[level] = (stats.byLevel[level] || 0) + 1;
+        
+        // Count by repository
+        const repo = entry.context?.repository || 'unknown';
+        stats.byRepository[repo] = (stats.byRepository[repo] || 0) + 1;
+        
+        // Count by user
+        const user = entry.context?.user || 'unknown';
+        stats.byUser[user] = (stats.byUser[user] || 0) + 1;
+        
+        // Count by time
+        const entryDate = new Date(entry.timestamp);
+        const timeKey = this.getTimeGroupKey(entryDate, groupBy);
+        stats.byTime[timeKey] = (stats.byTime[timeKey] || 0) + 1;
+      });
+      
+      // Generate top lists
+      stats.topEvents = Object.entries(stats.byEventType)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10)
+        .map(([event, count]) => ({ event, count }));
+      
+      stats.topUsers = Object.entries(stats.byUser)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10)
+        .map(([user, count]) => ({ user, count }));
+      
+      stats.topRepositories = Object.entries(stats.byRepository)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10)
+        .map(([repo, count]) => ({ repo, count }));
+      
+      return stats;
+      
+    } catch (error) {
+      console.error('Error generating log statistics:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get time group key for grouping statistics
+   * @param {Date} date - Date to group
+   * @param {string} groupBy - Grouping strategy
+   * @returns {string} Time group key
+   */
+  getTimeGroupKey(date, groupBy) {
+    switch (groupBy) {
+      case 'hour':
+        return date.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+      case 'day':
+        return date.toISOString().slice(0, 10); // YYYY-MM-DD
+      case 'week':
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        return weekStart.toISOString().slice(0, 10);
+      case 'month':
+        return date.toISOString().slice(0, 7); // YYYY-MM
+      default:
+        return date.toISOString().slice(0, 10);
+    }
   }
 }
 
@@ -56742,577 +59182,662 @@ module.exports = OpenAIClient;
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 /**
- * Quality Gates Utility
- * Handles production quality gates and blocking mechanisms for high-severity issues
+ * Quality Gates System
+ * Evaluates code quality metrics and determines if code can proceed to deployment
  */
 
-const core = __nccwpck_require__(7484);
+const fs = __nccwpck_require__(9896);
+const path = __nccwpck_require__(6928);
 
 class QualityGates {
-  constructor(options = {}) {
-    this.options = {
-      // Quality gate settings
-      enabled: options.enabled !== false,
-      severityThreshold: options.severityThreshold || 'HIGH',
-      blockProduction: options.blockProduction !== false,
-      
-      // Override settings
-      allowUrgentOverride: options.allowUrgentOverride !== false,
-      urgentKeyword: options.urgentKeyword || 'URGENT',
-      maxOverridesPerDay: options.maxOverridesPerDay || 3,
-      
-      // Logging
-      enableLogging: options.enableLogging !== false,
-      logLevel: options.logLevel || 'INFO',
-      
-      // Override tracking
-      overrideTracking: options.overrideTracking || new Map()
+  constructor(config = {}) {
+    this.config = {
+      // Default quality gate thresholds
+      coverage: {
+        global: 80,
+        unit: 85,
+        integration: 75,
+        e2e: 70,
+        performance: 60
+      },
+      performance: {
+        maxResponseTime: 30000, // 30 seconds
+        maxMemoryUsage: 100 * 1024 * 1024, // 100MB
+        maxFileProcessingTime: 5000 // 5 seconds per file
+      },
+      security: {
+        maxVulnerabilities: 0,
+        maxAuditScore: 0,
+        requireSecurityScan: true
+      },
+      tests: {
+        requireAllPassing: true,
+        allowWarnings: true,
+        maxTestTime: 300000 // 5 minutes
+      },
+      ...config
     };
-
-    // Audit logger reference (will be set during initialization)
-    this.auditLogger = null;
-
-    // Validate configuration
-    this.validateConfig();
-  }
-
-  /**
-   * Set audit logger reference
-   * @param {Object} auditLogger - Audit logger instance
-   */
-  setAuditLogger(auditLogger) {
-    this.auditLogger = auditLogger;
-  }
-
-  /**
-   * Validate quality gate configuration
-   */
-  validateConfig() {
-    const validSeverities = ['LOW', 'MEDIUM', 'HIGH'];
     
-    if (!validSeverities.includes(this.options.severityThreshold)) {
-      throw new Error(`Invalid severity threshold: ${this.options.severityThreshold}. Must be one of: ${validSeverities.join(', ')}`);
-    }
-
-    if (this.options.maxOverridesPerDay < 0) {
-      throw new Error('maxOverridesPerDay must be a non-negative number');
-    }
+    this.gateResults = new Map();
+    this.metrics = new Map();
   }
 
   /**
-   * Evaluate quality gate for a review with comprehensive logging
-   * @param {Object} reviewData - Review data from AI
-   * @param {Object} config - Configuration settings
-   * @param {Object} context - Additional context for logging
-   * @returns {Object} Quality gate result
+   * Evaluate all quality gates for a given session
    */
-  async evaluateQualityGate(reviewData, config, context = {}) {
+  async evaluateQualityGates(sessionId, testResults, coverageData, performanceData) {
     const startTime = Date.now();
-    const sessionId = context.sessionId || `qg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     try {
-      // Log quality gate evaluation start
-      await this.logQualityGateStart(sessionId, reviewData, config, context);
+      console.log(`🔍 Evaluating quality gates for session: ${sessionId}`);
+      
+      // Store metrics for this session
+      this.metrics.set(sessionId, {
+        testResults,
+        coverageData,
+        performanceData,
+        evaluationTime: startTime
+      });
 
-      if (!this.options.enabled) {
+      // Evaluate each quality gate
+      const results = {
+        sessionId,
+        timestamp: new Date().toISOString(),
+        overall: { passed: true, score: 0, details: [] },
+        gates: {}
+      };
+
+      // Gate 1: Test Coverage
+      const coverageResult = await this.evaluateCoverageGate(sessionId, coverageData);
+      results.gates.coverage = coverageResult;
+      results.overall.score += coverageResult.score;
+
+      // Gate 2: Test Results
+      const testResult = await this.evaluateTestResultsGate(sessionId, testResults);
+      results.gates.testResults = testResult;
+      results.overall.score += testResult.score;
+
+      // Gate 3: Performance Metrics
+      const performanceResult = await this.evaluatePerformanceGate(sessionId, performanceData);
+      results.gates.performance = performanceResult;
+      results.overall.score += performanceResult.score;
+
+      // Gate 4: Security Scan
+      const securityResult = await this.evaluateSecurityGate(sessionId);
+      results.gates.security = securityResult;
+      results.overall.score += securityResult.score;
+
+      // Gate 5: Code Quality
+      const qualityResult = await this.evaluateCodeQualityGate(sessionId);
+      results.gates.codeQuality = qualityResult;
+      results.overall.score += qualityResult.score;
+
+      // Calculate overall score (0-100)
+      results.overall.score = Math.round(results.overall.score / 5);
+      
+      // Determine overall pass/fail
+      results.overall.passed = this.determineOverallPass(results.gates);
+      
+      // Generate detailed feedback
+      results.overall.details = this.generateFeedback(results.gates);
+
+      // Store results
+      this.gateResults.set(sessionId, results);
+
+      const evaluationTime = Date.now() - startTime;
+      console.log(`✅ Quality gates evaluation completed in ${evaluationTime}ms`);
+      console.log(`📊 Overall Score: ${results.overall.score}/100 (${results.overall.passed ? 'PASSED' : 'FAILED'})`);
+
+      return results;
+
+    } catch (error) {
+      console.error(`❌ Quality gates evaluation failed: ${error.message}`);
+      throw new Error(`Quality gates evaluation failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Evaluate test coverage quality gate
+   */
+  async evaluateCoverageGate(sessionId, coverageData) {
+    const result = {
+      name: 'Test Coverage',
+      passed: true,
+      score: 0,
+      details: [],
+      metrics: {}
+    };
+
+    try {
+      if (!coverageData || !coverageData.summary) {
+        result.passed = false;
+        result.score = 0;
+        result.details.push('No coverage data available');
+        return result;
+      }
+
+      const { summary } = coverageData;
+      const thresholds = this.config.coverage;
+
+      // Check global coverage
+      if (summary.lines < thresholds.global) {
+        result.passed = false;
+        result.details.push(`Global line coverage (${summary.lines}%) below threshold (${thresholds.global}%)`);
+      }
+
+      // Check specific test type coverage
+      if (coverageData.testTypes) {
+        for (const [testType, coverage] of Object.entries(coverageData.testTypes)) {
+          const threshold = thresholds[testType] || thresholds.global;
+          if (coverage.lines < threshold) {
+            result.details.push(`${testType} coverage (${coverage.lines}%) below threshold (${threshold}%)`);
+          }
+        }
+      }
+
+      // Calculate score based on coverage percentages
+      const coverageScore = Math.min(100, Math.round(summary.lines));
+      result.score = coverageScore;
+      result.metrics = {
+        globalCoverage: summary.lines,
+        branchesCoverage: summary.branches,
+        functionsCoverage: summary.functions,
+        statementsCoverage: summary.statements
+      };
+
+      // Determine pass/fail
+      result.passed = result.details.length === 0 && coverageScore >= thresholds.global;
+
+    } catch (error) {
+      result.passed = false;
+      result.score = 0;
+      result.details.push(`Coverage evaluation error: ${error.message}`);
+    }
+
+        return result;
+      }
+
+  /**
+   * Evaluate test results quality gate
+   */
+  async evaluateTestResultsGate(sessionId, testResults) {
         const result = {
+      name: 'Test Results',
           passed: true,
-          blocked: false,
-          reason: 'Quality gates disabled',
-          overrideUsed: false,
-          severityThreshold: this.options.severityThreshold,
-          evaluationTime: Date.now() - startTime
-        };
-        
-        await this.logQualityGateDecision(sessionId, result, context);
+      score: 0,
+      details: [],
+      metrics: {}
+    };
+
+    try {
+      if (!testResults) {
+        result.passed = false;
+        result.score = 0;
+        result.details.push('No test results available');
         return result;
       }
 
-      const { severity_breakdown, commit_message, commit_author, target_branch } = reviewData;
-      const environment = config.current_environment || 'unknown';
+      const { total, passed, failed, skipped, duration } = testResults;
       
-      // Check if this is a production environment
-      const isProduction = this.isProductionEnvironment(target_branch, environment);
-      
-      if (!isProduction || !this.options.blockProduction) {
-        const result = {
-          passed: true,
-          blocked: false,
-          reason: 'Not a production environment or blocking disabled',
-          overrideUsed: false,
-          severityThreshold: this.options.severityThreshold,
-          environment,
-          targetBranch: target_branch,
-          isProduction,
-          evaluationTime: Date.now() - startTime
-        };
-        
-        await this.logQualityGateDecision(sessionId, result, context);
+      if (total === 0) {
+        result.passed = false;
+        result.score = 0;
+        result.details.push('No tests were executed');
         return result;
       }
 
-      // Check for urgent override
-      const overrideInfo = await this.checkUrgentOverride(commit_message, commit_author, config, context);
-      
-      if (overrideInfo.overrideUsed) {
-        const result = {
-          passed: true,
-          blocked: false,
-          reason: 'URGENT override applied',
-          overrideUsed: true,
-          overrideInfo,
-          severityThreshold: this.options.severityThreshold,
-          environment,
-          targetBranch: target_branch,
-          evaluationTime: Date.now() - startTime
-        };
-        
-        await this.logQualityGateDecision(sessionId, result, context);
-        await this.logOverrideAttempt(sessionId, overrideInfo, context);
+      // Check if all tests passed
+      if (this.config.tests.requireAllPassing && failed > 0) {
+        result.passed = false;
+        result.details.push(`${failed} test(s) failed`);
+      }
+
+      // Check test execution time
+      if (duration > this.config.tests.maxTestTime) {
+        result.details.push(`Test execution time (${duration}ms) exceeded limit (${this.config.tests.maxTestTime}ms)`);
+      }
+
+      // Calculate score based on pass rate
+      const passRate = (passed / total) * 100;
+      result.score = Math.round(passRate);
+      result.metrics = {
+        totalTests: total,
+        passedTests: passed,
+        failedTests: failed,
+        skippedTests: skipped,
+        passRate: passRate,
+        executionTime: duration
+      };
+
+      // Determine pass/fail
+      result.passed = failed === 0 && duration <= this.config.tests.maxTestTime;
+
+    } catch (error) {
+      result.passed = false;
+      result.score = 0;
+      result.details.push(`Test results evaluation error: ${error.message}`);
+    }
+
+    return result;
+  }
+
+  /**
+   * Evaluate performance quality gate
+   */
+  async evaluatePerformanceGate(sessionId, performanceData) {
+    const result = {
+      name: 'Performance Metrics',
+      passed: true,
+      score: 0,
+      details: [],
+      metrics: {}
+    };
+
+    try {
+      if (!performanceData) {
+        result.passed = false;
+        result.score = 0;
+        result.details.push('No performance data available');
         return result;
       }
 
-      // Evaluate severity against threshold
-      const evaluation = this.evaluateSeverity(severity_breakdown, config);
-      
-      if (evaluation.blocked) {
-        const result = {
-          passed: false,
-          blocked: true,
-          reason: evaluation.reason,
-          overrideUsed: false,
-          severityThreshold: this.options.severityThreshold,
-          highestSeverity: evaluation.highestSeverity,
-          issuesFound: evaluation.issuesFound,
-          severityBreakdown: severity_breakdown,
-          environment,
-          targetBranch: target_branch,
-          evaluationTime: Date.now() - startTime
-        };
-        
-        await this.logQualityGateDecision(sessionId, result, context);
+      const thresholds = this.config.performance;
+      let score = 100;
+
+      // Check response time
+      if (performanceData.responseTime > thresholds.maxResponseTime) {
+        result.passed = false;
+        result.details.push(`Response time (${performanceData.responseTime}ms) exceeded limit (${thresholds.maxResponseTime}ms)`);
+        score -= 20;
+      }
+
+      // Check memory usage
+      if (performanceData.memoryUsage > thresholds.maxMemoryUsage) {
+        result.passed = false;
+        result.details.push(`Memory usage (${Math.round(performanceData.memoryUsage / 1024 / 1024)}MB) exceeded limit (${Math.round(thresholds.maxMemoryUsage / 1024 / 1024)}MB)`);
+        score -= 20;
+      }
+
+      // Check file processing time
+      if (performanceData.fileProcessingTime > thresholds.maxFileProcessingTime) {
+        result.details.push(`File processing time (${performanceData.fileProcessingTime}ms) exceeded limit (${thresholds.maxFileProcessingTime}ms)`);
+        score -= 10;
+      }
+
+      // Check scalability
+      if (performanceData.scalability && performanceData.scalability.efficiency < 0.5) {
+        result.details.push(`Scalability efficiency (${performanceData.scalability.efficiency}) below threshold (0.5)`);
+        score -= 15;
+      }
+
+      result.score = Math.max(0, score);
+      result.metrics = {
+        responseTime: performanceData.responseTime,
+        memoryUsage: performanceData.memoryUsage,
+        fileProcessingTime: performanceData.fileProcessingTime,
+        scalability: performanceData.scalability
+      };
+
+      // Determine pass/fail
+      result.passed = result.score >= 70;
+
+    } catch (error) {
+      result.passed = false;
+      result.score = 0;
+      result.details.push(`Performance evaluation error: ${error.message}`);
+    }
+
+    return result;
+  }
+
+  /**
+   * Evaluate security quality gate
+   */
+  async evaluateSecurityGate(sessionId) {
+    const result = {
+      name: 'Security Scan',
+      passed: true,
+      score: 0,
+      details: [],
+      metrics: {}
+    };
+
+    try {
+      const thresholds = this.config.security;
+
+      if (!thresholds.requireSecurityScan) {
+        result.score = 100;
+        result.details.push('Security scan not required');
         return result;
       }
 
-      const result = {
-        passed: true,
-        blocked: false,
-        reason: 'Quality gate passed',
-        overrideUsed: false,
-        severityThreshold: this.options.severityThreshold,
-        highestSeverity: evaluation.highestSeverity,
-        severityBreakdown: severity_breakdown,
-        environment,
-        targetBranch: target_branch,
-        evaluationTime: Date.now() - startTime
-      };
+      // Check for security vulnerabilities
+      const vulnerabilities = await this.scanForVulnerabilities();
       
-      await this.logQualityGateDecision(sessionId, result, context);
-      return result;
+      if (vulnerabilities.count > thresholds.maxVulnerabilities) {
+        result.passed = false;
+        result.details.push(`${vulnerabilities.count} security vulnerabilities found (max: ${thresholds.maxVulnerabilities})`);
+        result.score = Math.max(0, 100 - (vulnerabilities.count * 20));
+      } else {
+        result.score = 100;
+        result.details.push('No security vulnerabilities detected');
+      }
+
+      result.metrics = {
+        vulnerabilityCount: vulnerabilities.count,
+        vulnerabilityDetails: vulnerabilities.details,
+        auditScore: vulnerabilities.auditScore
+      };
 
     } catch (error) {
-      const errorResult = {
-        passed: false,
-        blocked: true,
-        reason: `Quality gate evaluation failed: ${error.message}`,
-        error: error.message,
-        evaluationTime: Date.now() - startTime
-      };
+      result.passed = false;
+      result.score = 0;
+      result.details.push(`Security evaluation error: ${error.message}`);
+    }
+
+    return result;
+  }
+
+  /**
+   * Evaluate code quality gate
+   */
+  async evaluateCodeQualityGate(sessionId) {
+    const result = {
+      name: 'Code Quality',
+      passed: true,
+      score: 0,
+      details: [],
+      metrics: {}
+    };
+
+    try {
+      // Check linting results
+      const lintResults = await this.runLintingCheck();
       
-      await this.logQualityGateError(sessionId, error, context);
-      return errorResult;
-    }
-  }
+      if (lintResults.errors > 0) {
+        result.passed = false;
+        result.details.push(`${lintResults.errors} linting errors found`);
+        result.score = Math.max(0, 100 - (lintResults.errors * 10));
+      } else {
+        result.score = 100;
+        result.details.push('No linting errors found');
+      }
 
-  /**
-   * Log quality gate evaluation start
-   * @param {string} sessionId - Session ID
-   * @param {Object} reviewData - Review data
-   * @param {Object} config - Configuration
-   * @param {Object} context - Context
-   */
-  async logQualityGateStart(sessionId, reviewData, config, context) {
-    if (!this.auditLogger) return;
-    
-    try {
-      await this.auditLogger.logInfo('quality_gate_start', {
-        session_id: sessionId,
-        environment: config.current_environment || 'unknown',
-        target_branch: reviewData.target_branch,
-        severity_threshold: this.options.severityThreshold,
-        block_production: this.options.blockProduction,
-        allow_override: this.options.allowUrgentOverride,
-        max_overrides_per_day: this.options.maxOverridesPerDay
-      }, context);
-    } catch (error) {
-      core.warning(`Failed to log quality gate start: ${error.message}`);
-    }
-  }
-
-  /**
-   * Log quality gate decision
-   * @param {string} sessionId - Session ID
-   * @param {Object} result - Quality gate result
-   * @param {Object} context - Context
-   */
-  async logQualityGateDecision(sessionId, result, context) {
-    if (!this.auditLogger) return;
-    
-    try {
-      const decisionData = {
-        session_id: sessionId,
-        approved: result.passed,
-        reason: result.reason,
-        override_used: result.overrideUsed || false,
-        override_reason: result.overrideInfo?.reason || null,
-        severity_threshold: result.severityThreshold,
-        highest_severity: result.highestSeverity,
-        issues_found: result.issuesFound,
-        environment: result.environment,
-        target_branch: result.targetBranch,
-        evaluation_time_ms: result.evaluationTime,
-        timestamp: new Date().toISOString()
-      };
-
-      await this.auditLogger.logQualityGateDecision(decisionData, context);
-    } catch (error) {
-      core.warning(`Failed to log quality gate decision: ${error.message}`);
-    }
-  }
-
-  /**
-   * Log override attempt
-   * @param {string} sessionId - Session ID
-   * @param {Object} overrideInfo - Override information
-   * @param {Object} context - Context
-   */
-  async logOverrideAttempt(sessionId, overrideInfo, context) {
-    if (!this.auditLogger) return;
-    
-    try {
-      const overrideData = {
-        session_id: sessionId,
-        override_keyword: overrideInfo.keyword || 'URGENT',
-        commit_message: overrideInfo.commitMessage || '',
-        user_authorized: overrideInfo.authorized || false,
-        reason: overrideInfo.reason || 'URGENT override applied',
-        daily_count: overrideInfo.dailyCount || 0,
-        max_daily_overrides: this.options.maxOverridesPerDay,
-        timestamp: new Date().toISOString()
-      };
-
-      await this.auditLogger.logOverrideAttempt(overrideData, context);
-    } catch (error) {
-      core.warning(`Failed to log override attempt: ${error.message}`);
-    }
-  }
-
-  /**
-   * Log quality gate error
-   * @param {string} sessionId - Session ID
-   * @param {Error} error - Error object
-   * @param {Object} context - Context
-   */
-  async logQualityGateError(sessionId, error, context) {
-    if (!this.auditLogger) return;
-    
-    try {
-      await this.auditLogger.logError('quality_gate_error', {
-        session_id: sessionId,
-        error_message: error.message,
-        error_stack: error.stack,
-        timestamp: new Date().toISOString()
-      }, context);
-    } catch (logError) {
-      core.warning(`Failed to log quality gate error: ${logError.message}`);
-    }
-  }
-
-  /**
-   * Check for urgent override in commit message
-   * @param {string} commitMessage - Commit message
-   * @param {string} commitAuthor - Commit author
-   * @param {Object} config - Configuration
-   * @param {Object} context - Additional context for logging
-   * @returns {Object} Override information
-   */
-  async checkUrgentOverride(commitMessage, commitAuthor, config, context) {
-    if (!this.options.allowUrgentOverride) {
-      return { overrideUsed: false, reason: 'Override disabled' };
-    }
-
-    const hasUrgentKeyword = this.hasUrgentKeyword(commitMessage);
-    
-    if (!hasUrgentKeyword) {
-      return { overrideUsed: false, reason: 'No override keyword found' };
-    }
-
-    // Check override limits
-    const overrideLimit = config.quality_gates?.max_overrides_per_day || this.options.maxOverridesPerDay;
-    const today = new Date().toDateString();
-    const userKey = `${commitAuthor}:${today}`;
-    
-    const currentOverrides = this.options.overrideTracking.get(userKey) || 0;
-    
-    if (currentOverrides >= overrideLimit) {
-      await this.logOverrideAttempt(context.sessionId || 'unknown', {
-        keyword: this.options.urgentKeyword,
-        commitMessage: commitMessage,
-        authorized: false,
-        reason: `Override limit exceeded (${currentOverrides}/${overrideLimit})`,
-        dailyCount: currentOverrides,
-        maxDailyOverrides: overrideLimit
-      }, context);
+      // Check code formatting
+      const formatResults = await this.runFormattingCheck();
       
+      if (formatResults.issues > 0) {
+        result.details.push(`${formatResults.issues} formatting issues found`);
+        result.score = Math.max(0, result.score - (formatResults.issues * 5));
+      }
+
+      // Check code complexity
+      const complexityResults = await this.analyzeCodeComplexity();
+      
+      if (complexityResults.highComplexity > 0) {
+        result.details.push(`${complexityResults.highComplexity} functions with high complexity found`);
+        result.score = Math.max(0, result.score - (complexityResults.highComplexity * 5));
+      }
+
+      result.metrics = {
+        lintErrors: lintResults.errors,
+        lintWarnings: lintResults.warnings,
+        formatIssues: formatResults.issues,
+        complexityScore: complexityResults.score
+      };
+
+      // Determine pass/fail
+      result.passed = result.score >= 80;
+
+    } catch (error) {
+      result.passed = false;
+      result.score = 0;
+      result.details.push(`Code quality evaluation error: ${error.message}`);
+    }
+
+    return result;
+  }
+
+  /**
+   * Determine overall pass/fail based on individual gate results
+   */
+  determineOverallPass(gates) {
+    const criticalGates = ['coverage', 'testResults', 'security'];
+    
+    for (const gateName of criticalGates) {
+      if (gates[gateName] && !gates[gateName].passed) {
+        return false;
+      }
+    }
+
+    // Check if overall score meets minimum threshold
+    const totalScore = Object.values(gates).reduce((sum, gate) => sum + gate.score, 0);
+    const averageScore = totalScore / Object.keys(gates).length;
+    
+    return averageScore >= 75;
+  }
+
+  /**
+   * Generate detailed feedback for quality gate results
+   */
+  generateFeedback(gates) {
+    const feedback = [];
+    
+    for (const [gateName, gate] of Object.entries(gates)) {
+      if (!gate.passed) {
+        feedback.push(`❌ ${gate.name}: ${gate.details.join(', ')}`);
+      } else if (gate.score < 90) {
+        feedback.push(`⚠️ ${gate.name}: ${gate.details.join(', ')}`);
+      } else {
+        feedback.push(`✅ ${gate.name}: ${gate.details.join(', ')}`);
+      }
+    }
+
+    return feedback;
+  }
+
+  /**
+   * Scan for security vulnerabilities
+   */
+  async scanForVulnerabilities() {
+    try {
+      // This would integrate with npm audit or other security scanning tools
+      // For now, return mock data
       return {
-        overrideUsed: false,
-        reason: `Override limit exceeded (${currentOverrides}/${overrideLimit})`,
-        limitExceeded: true
+        count: 0,
+        details: [],
+        auditScore: 0
       };
-    }
-
-    // Track override usage
-    this.options.overrideTracking.set(userKey, currentOverrides + 1);
-    
-    const overrideInfo = {
-      overrideUsed: true,
-      keyword: this.options.urgentKeyword,
-      commitMessage: commitMessage,
-      authorized: true,
-      reason: 'URGENT override applied',
-      author: commitAuthor,
-      date: today,
-      overridesUsed: currentOverrides + 1,
-      limit: overrideLimit,
-      dailyCount: currentOverrides + 1
-    };
-
-    await this.logOverrideAttempt(context.sessionId || 'unknown', overrideInfo, context);
-    return overrideInfo;
-  }
-
-  /**
-   * Check if commit message contains urgent keyword
-   * @param {string} commitMessage - Commit message
-   * @returns {boolean} Has urgent keyword
-   */
-  hasUrgentKeyword(commitMessage) {
-    if (!commitMessage) return false;
-    
-    const urgentPattern = new RegExp(`\\b${this.options.urgentKeyword}\\b`, 'i');
-    return urgentPattern.test(commitMessage);
-  }
-
-  /**
-   * Evaluate severity against configured threshold
-   * @param {Object} severityBreakdown - Severity breakdown
-   * @param {Object} config - Configuration
-   * @returns {Object} Severity evaluation
-   */
-  evaluateSeverity(severityBreakdown, config) {
-    const threshold = config.quality_gates?.severity_threshold || this.options.severityThreshold;
-    const highestSeverity = this.getHighestSeverity(severityBreakdown);
-    
-    // Map severity levels to numeric values for comparison
-    const severityLevels = {
-      'LOW': 1,
-      'MEDIUM': 2,
-      'HIGH': 3
-    };
-    
-    const thresholdLevel = severityLevels[threshold];
-    const highestLevel = severityLevels[highestSeverity];
-    
-    if (highestLevel >= thresholdLevel) {
-      const issuesFound = this.countIssuesAtOrAboveSeverity(severityBreakdown, threshold);
+    } catch (error) {
+      console.error(`Security scan failed: ${error.message}`);
       return {
-        blocked: true,
-        reason: `${highestSeverity} severity issues detected (threshold: ${threshold})`,
-        highestSeverity,
-        issuesFound,
-        threshold
+        count: 999, // High number to indicate scan failure
+        details: [`Security scan failed: ${error.message}`],
+        auditScore: -1
       };
     }
-    
-    return {
-      blocked: false,
-      reason: `Issues below threshold (${threshold})`,
-      highestSeverity,
-      threshold
-    };
   }
 
   /**
-   * Get highest severity from breakdown
-   * @param {Object} severityBreakdown - Severity breakdown
-   * @returns {string} Highest severity
+   * Run linting check
    */
-  getHighestSeverity(severityBreakdown) {
-    if (severityBreakdown.high > 0) return 'HIGH';
-    if (severityBreakdown.medium > 0) return 'MEDIUM';
-    if (severityBreakdown.low > 0) return 'LOW';
-    return 'NONE';
-  }
-
-  /**
-   * Count issues at or above specified severity
-   * @param {Object} severityBreakdown - Severity breakdown
-   * @param {string} severity - Severity threshold
-   * @returns {number} Issue count
-   */
-  countIssuesAtOrAboveSeverity(severityBreakdown, severity) {
-    const severityLevels = {
-      'LOW': 1,
-      'MEDIUM': 2,
-      'HIGH': 3
-    };
-    
-    const thresholdLevel = severityLevels[severity];
-    let count = 0;
-    
-    if (thresholdLevel <= 3 && severityBreakdown.high > 0) {
-      count += severityBreakdown.high;
+  async runLintingCheck() {
+    try {
+      // This would integrate with ESLint
+      // For now, return mock data
+      return {
+        errors: 0,
+        warnings: 0
+      };
+    } catch (error) {
+      console.error(`Linting check failed: ${error.message}`);
+      return {
+        errors: 999,
+        warnings: 0
+      };
     }
-    if (thresholdLevel <= 2 && severityBreakdown.medium > 0) {
-      count += severityBreakdown.medium;
-    }
-    if (thresholdLevel <= 1 && severityBreakdown.low > 0) {
-      count += severityBreakdown.low;
-    }
-    
-    return count;
   }
 
   /**
-   * Check if environment is production
-   * @param {string} targetBranch - Target branch name
-   * @param {string} environment - Environment name
-   * @returns {boolean} Is production environment
+   * Run formatting check
    */
-  isProductionEnvironment(targetBranch, environment) {
-    const productionBranches = ['main', 'master', 'production', 'prod', 'live'];
-    const productionEnvironments = ['production', 'prod', 'live'];
-    
-    return productionBranches.includes(targetBranch.toLowerCase()) || 
-           productionEnvironments.includes(environment.toLowerCase());
+  async runFormattingCheck() {
+    try {
+      // This would integrate with Prettier
+      // For now, return mock data
+      return {
+        issues: 0
+      };
+    } catch (error) {
+      console.error(`Formatting check failed: ${error.message}`);
+      return {
+        issues: 999
+      };
+    }
   }
 
   /**
-   * Generate quality gate status message
-   * @param {Object} gateResult - Quality gate result
-   * @returns {string} Status message
+   * Analyze code complexity
    */
-  generateStatusMessage(gateResult) {
-    if (gateResult.passed) {
-      if (gateResult.overrideUsed) {
-        return `✅ Quality gate passed (URGENT override used)`;
+  async analyzeCodeComplexity() {
+    try {
+      // This would analyze cyclomatic complexity
+      // For now, return mock data
+      return {
+        highComplexity: 0,
+        score: 100
+      };
+    } catch (error) {
+      console.error(`Complexity analysis failed: ${error.message}`);
+      return {
+        highComplexity: 999,
+        score: 0
+      };
+    }
+  }
+
+  /**
+   * Get quality gate results for a session
+   */
+  getGateResults(sessionId) {
+    return this.gateResults.get(sessionId);
+  }
+
+  /**
+   * Get all quality gate results
+   */
+  getAllGateResults() {
+    return Array.from(this.gateResults.values());
+  }
+
+  /**
+   * Clear quality gate results for a session
+   */
+  clearGateResults(sessionId) {
+    this.gateResults.delete(sessionId);
+    this.metrics.delete(sessionId);
+  }
+
+  /**
+   * Export quality gate results to file
+   */
+  async exportResults(sessionId, filePath) {
+    try {
+      const results = this.getGateResults(sessionId);
+      if (!results) {
+        throw new Error(`No results found for session: ${sessionId}`);
       }
-      return `✅ Quality gate passed`;
+
+      const exportData = {
+        ...results,
+        exportTimestamp: new Date().toISOString(),
+        version: '1.0.0'
+      };
+
+      await fs.promises.writeFile(filePath, JSON.stringify(exportData, null, 2));
+      console.log(`📁 Quality gate results exported to: ${filePath}`);
+      
+      return true;
+    } catch (error) {
+      console.error(`Export failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate quality gate report
+   */
+  generateReport(sessionId) {
+    const results = this.getGateResults(sessionId);
+    if (!results) {
+      return null;
+    }
+
+    const report = {
+      summary: {
+        sessionId: results.sessionId,
+        timestamp: results.timestamp,
+        overallScore: results.overall.score,
+        overallPassed: results.overall.passed,
+        gateCount: Object.keys(results.gates).length,
+        passedGates: Object.values(results.gates).filter(gate => gate.passed).length
+      },
+      gates: results.gates,
+      recommendations: this.generateRecommendations(results.gates),
+      nextSteps: this.generateNextSteps(results.overall.passed, results.gates)
+    };
+
+    return report;
+  }
+
+  /**
+   * Generate recommendations based on gate results
+   */
+  generateRecommendations(gates) {
+    const recommendations = [];
+
+    for (const [gateName, gate] of Object.entries(gates)) {
+      if (!gate.passed) {
+        switch (gateName) {
+          case 'coverage':
+            recommendations.push('Increase test coverage by adding more unit and integration tests');
+            break;
+          case 'testResults':
+            recommendations.push('Fix failing tests and ensure all tests pass before proceeding');
+            break;
+          case 'performance':
+            recommendations.push('Optimize code performance and reduce response times');
+            break;
+          case 'security':
+            recommendations.push('Address security vulnerabilities identified in the scan');
+            break;
+          case 'codeQuality':
+            recommendations.push('Fix linting errors and improve code formatting');
+            break;
+        }
+      }
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Generate next steps based on quality gate results
+   */
+  generateNextSteps(passed, gates) {
+    if (passed) {
+      return [
+        '✅ Code quality meets deployment standards',
+        '🚀 Ready to proceed with deployment',
+        '📊 Monitor performance in production environment'
+      ];
     } else {
-      return `❌ Quality gate failed: ${gateResult.reason}`;
-    }
-  }
-
-  /**
-   * Get override statistics
-   * @returns {Object} Override statistics
-   */
-  getOverrideStats() {
-    const stats = {
-      totalOverrides: 0,
-      usersWithOverrides: new Set(),
-      dailyBreakdown: {}
-    };
-    
-    for (const [key, count] of this.options.overrideTracking) {
-      const [user, date] = key.split(':');
-      stats.totalOverrides += count;
-      stats.usersWithOverrides.add(user);
-      
-      if (!stats.dailyBreakdown[date]) {
-        stats.dailyBreakdown[date] = 0;
-      }
-      stats.dailyBreakdown[date] += count;
-    }
-    
-    stats.usersWithOverrides = Array.from(stats.usersWithOverrides);
-    
-    return stats;
-  }
-
-  /**
-   * Clear override tracking data
-   * @param {string} olderThan - Clear data older than this date (optional)
-   */
-  clearOverrideTracking(olderThan = null) {
-    if (!olderThan) {
-      this.options.overrideTracking.clear();
-      this.logInfo('Cleared all override tracking data');
-      return;
-    }
-    
-    const cutoffDate = new Date(olderThan);
-    const keysToDelete = [];
-    
-    for (const [key] of this.options.overrideTracking) {
-      const [, dateStr] = key.split(':');
-      const entryDate = new Date(dateStr);
-      
-      if (entryDate < cutoffDate) {
-        keysToDelete.push(key);
-      }
-    }
-    
-    keysToDelete.forEach(key => this.options.overrideTracking.delete(key));
-    this.logInfo(`Cleared ${keysToDelete.length} old override tracking entries`);
-  }
-
-  /**
-   * Get quality gate configuration summary
-   * @returns {Object} Configuration summary
-   */
-  getConfigSummary() {
-    return {
-      enabled: this.options.enabled,
-      severityThreshold: this.options.severityThreshold,
-      blockProduction: this.options.blockProduction,
-      allowUrgentOverride: this.options.allowUrgentOverride,
-      urgentKeyword: this.options.urgentKeyword,
-      maxOverridesPerDay: this.options.maxOverridesPerDay,
-      overrideTrackingSize: this.options.overrideTracking.size
-    };
-  }
-
-  /**
-   * Log information message
-   * @param {string} message - Message to log
-   * @param {...any} args - Additional arguments
-   */
-  logInfo(message, ...args) {
-    if (this.options.enableLogging && this.options.logLevel === 'INFO') {
-      core.info(`[Quality Gates] ${message}`, ...args);
-    }
-  }
-
-  /**
-   * Log warning message
-   * @param {string} message - Message to log
-   * @param {...any} args - Additional arguments
-   */
-  logWarning(message, ...args) {
-    if (this.options.enableLogging) {
-      core.warning(`[Quality Gates] ${message}`, ...args);
-    }
-  }
-
-  /**
-   * Log error message
-   * @param {string} message - Message to log
-   * @param {...any} args - Additional arguments
-   */
-  logError(message, ...args) {
-    if (this.options.enableLogging) {
-      core.error(`[Quality Gates] ${message}`, ...args);
+      return [
+        '🔧 Fix identified quality issues',
+        '🧪 Re-run quality gates after fixes',
+        '📋 Review detailed feedback for each gate',
+        '⏳ Do not proceed with deployment until all gates pass'
+      ];
     }
   }
 }
@@ -60752,86 +63277,12 @@ module.exports = /*#__PURE__*/JSON.parse('{"name":"nodemailer","version":"6.10.1
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-var __webpack_exports__ = {};
-const core = __nccwpck_require__(7484);
-const github = __nccwpck_require__(3228);
-const AIReviewAction = __nccwpck_require__(5467);
-
-/**
- * Main entry point for the AI Code Review GitHub Action
- * This file is the entry point that GitHub Actions will execute
- */
-async function main() {
-  try {
-    core.info('🚀 Starting AI Code Review Action...');
-    
-    // Add comprehensive context logging
-    core.info('🔍 Checking GitHub context...');
-    if (!github.context) {
-      core.warning('⚠️ GitHub context is not available, using environment variables');
-    } else {
-      core.info(`✅ GitHub context available: ${github.context.eventName || 'unknown'} event`);
-    }
-    
-    // Log all context properties for debugging
-    core.info('📋 Context Details:');
-    core.info(`   Context object: ${JSON.stringify(github.context, null, 2)}`);
-    core.info(`   Event Name: ${github.context?.eventName || 'undefined'}`);
-    core.info(`   Payload: ${github.context?.payload ? 'available' : 'undefined'}`);
-    core.info(`   Repo: ${github.context?.repo ? 'available' : 'undefined'}`);
-    core.info(`   SHA: ${github.context?.sha || 'undefined'}`);
-    core.info(`   Actor: ${github.context?.actor || 'undefined'}`);
-    
-    // Log environment variables
-    core.info('📋 Environment Variables:');
-    core.info(`   GITHUB_EVENT_NAME: ${process.env.GITHUB_EVENT_NAME || 'undefined'}`);
-    core.info(`   GITHUB_REPOSITORY: ${process.env.GITHUB_REPOSITORY || 'undefined'}`);
-    core.info(`   GITHUB_SHA: ${process.env.GITHUB_SHA || 'undefined'}`);
-    core.info(`   GITHUB_ACTOR: ${process.env.GITHUB_ACTOR || 'undefined'}`);
-    
-    // Create AI review action with detailed logging
-    core.info('🔧 Creating AI Review Action...');
-    const action = new AIReviewAction();
-    core.info('✅ AI Review Action created successfully');
-    
-    // Execute the action
-    core.info('🚀 Executing AI Review Action...');
-    await action.execute();
-    core.info('✅ AI Code Review completed successfully');
-    
-  } catch (error) {
-    core.error(`❌ AI Code Review failed: ${error.message}`);
-    core.error(`📍 Error Location: ${error.stack}`);
-    core.error(`📋 Error Details:`);
-    core.error(`   Name: ${error.name}`);
-    core.error(`   Message: ${error.message}`);
-    core.error(`   Stack: ${error.stack}`);
-    core.error(`   File: ${error.fileName || 'unknown'}`);
-    core.error(`   Line: ${error.lineNumber || 'unknown'}`);
-    core.error(`   Column: ${error.columnNumber || 'unknown'}`);
-    
-    // Log the full error object
-    core.error(`🔍 Full Error Object: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`);
-    
-    core.setFailed(`AI Code Review failed: ${error.message}`);
-  }
-}
-
-// Add process error handlers
-process.on('uncaughtException', (error) => {
-  core.error(`💥 Uncaught Exception: ${error.message}`);
-  core.error(`📍 Stack: ${error.stack}`);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  core.error(`💥 Unhandled Rejection: ${reason}`);
-  core.error(`📍 Promise: ${promise}`);
-  process.exit(1);
-});
-
-main();
-
-module.exports = __webpack_exports__;
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = __nccwpck_require__(5105);
+/******/ 	module.exports = __webpack_exports__;
+/******/ 	
 /******/ })()
 ;

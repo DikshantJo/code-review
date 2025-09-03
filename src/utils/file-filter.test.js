@@ -557,4 +557,194 @@ describe('FileFilter', () => {
       expect(summary.excludeFileNames).toContain('config.js');
     });
   });
+
+  describe('getEnhancedFileCount', () => {
+    it('should analyze files with complete metadata', () => {
+      const files = [
+        {
+          filename: 'src/main.js',
+          status: 'modified',
+          additions: 10,
+          deletions: 5,
+          changes: 15,
+          lines: 15,
+          size: 2048,
+          priority: 80
+        },
+        {
+          filename: 'src/utils.js',
+          status: 'added',
+          additions: 25,
+          deletions: 0,
+          changes: 25,
+          lines: 25,
+          size: 4096,
+          priority: 90
+        },
+        {
+          filename: 'config/settings.json',
+          status: 'modified',
+          additions: 2,
+          deletions: 1,
+          changes: 3,
+          lines: 3,
+          size: 512,
+          priority: 60
+        }
+      ];
+
+      const analysis = fileFilter.getEnhancedFileCount(files);
+
+      // Basic counts
+      expect(analysis.totalFiles).toBe(3);
+      expect(analysis.includedFiles).toBe(3);
+      expect(analysis.excludedFiles).toBe(0);
+
+      // File type breakdown
+      expect(analysis.byType.code).toBe(2);
+      expect(analysis.byType.config).toBe(1);
+      expect(analysis.byType.test).toBe(0);
+      expect(analysis.byType.documentation).toBe(0);
+
+      // Size analysis
+      expect(analysis.bySize.small).toBe(1);  // 512 bytes
+      expect(analysis.bySize.medium).toBe(2); // 2048, 4096 bytes
+
+      // Line count analysis
+      expect(analysis.byLines.short).toBe(3);  // 3, 15, 25 lines (all < 50)
+      expect(analysis.byLines.medium).toBe(0); // no files with 50-200 lines
+
+      // Status analysis
+      expect(analysis.byStatus.added).toBe(1);
+      expect(analysis.byStatus.modified).toBe(2);
+      expect(analysis.byStatus.deleted).toBe(0);
+
+      // Priority analysis
+      expect(analysis.byPriority.high).toBe(0);   // no files > 100
+      expect(analysis.byPriority.medium).toBe(3); // 90, 80, 60 (all 51-100)
+      expect(analysis.byPriority.low).toBe(0);    // no files ≤ 50
+
+      // Summary statistics
+      expect(analysis.summary.totalSize).toBe(6656);
+      expect(analysis.summary.totalLines).toBe(43);
+      expect(analysis.summary.averageSize).toBe(2219);
+      expect(analysis.summary.averageLines).toBe(14);
+      expect(analysis.summary.largestFile).toBe('src/utils.js');
+      expect(analysis.summary.smallestFile).toBe('config/settings.json');
+      expect(analysis.summary.mostComplexFile).toBe('src/utils.js');
+    });
+
+    it('should handle files with missing metadata', () => {
+      const files = [
+        { filename: 'src/app.js' },
+        { filename: 'config.env', status: 'modified' },
+        { filename: 'README.md', lines: 50 }
+      ];
+
+      const analysis = fileFilter.getEnhancedFileCount(files);
+
+      expect(analysis.totalFiles).toBe(3);
+      expect(analysis.includedFiles).toBe(3);
+      expect(analysis.excludedFiles).toBe(0);
+
+      // Should handle missing properties gracefully
+      expect(analysis.summary.totalSize).toBe(0);
+      expect(analysis.summary.totalLines).toBe(50);
+      expect(analysis.summary.averageSize).toBe(0);
+      expect(analysis.summary.averageLines).toBe(17);
+    });
+
+    it('should categorize files by extension correctly', () => {
+      const files = [
+        { filename: 'src/main.js', lines: 100 },
+        { filename: 'src/styles.css', lines: 50 },
+        { filename: 'tests/main.test.js', lines: 30 },
+        { filename: 'docs/README.md', lines: 25 },
+        { filename: 'package.json', lines: 15 }
+      ];
+
+      const analysis = fileFilter.getEnhancedFileCount(files);
+
+      expect(analysis.byType.code).toBe(1);      // .js file (excluding test files)
+      expect(analysis.byType.styles).toBe(1);    // .css file
+      expect(analysis.byType.test).toBe(1);      // .test.js file
+      expect(analysis.byType.documentation).toBe(1); // .md file
+      expect(analysis.byType.config).toBe(1);    // .json file
+    });
+
+    it('should analyze file sizes correctly', () => {
+      const files = [
+        { filename: 'small.js', size: 500 },      // < 1KB
+        { filename: 'medium.js', size: 5000 },    // 1KB - 10KB
+        { filename: 'large.js', size: 50000 },    // 10KB - 100KB
+        { filename: 'xlarge.js', size: 500000 }   // > 100KB
+      ];
+
+      const analysis = fileFilter.getEnhancedFileCount(files);
+
+      expect(analysis.bySize.small).toBe(1);
+      expect(analysis.bySize.medium).toBe(1);
+      expect(analysis.bySize.large).toBe(1);
+      expect(analysis.bySize.xlarge).toBe(1);
+    });
+
+    it('should analyze line counts correctly', () => {
+      const files = [
+        { filename: 'short.js', lines: 25 },      // < 50 lines
+        { filename: 'medium.js', lines: 100 },    // 50-200 lines
+        { filename: 'long.js', lines: 300 },      // 200-500 lines
+        { filename: 'xlong.js', lines: 800 }      // > 500 lines
+      ];
+
+      const analysis = fileFilter.getEnhancedFileCount(files);
+
+      expect(analysis.byLines.short).toBe(1);
+      expect(analysis.byLines.medium).toBe(1);
+      expect(analysis.byLines.long).toBe(1);
+      expect(analysis.byLines.xlong).toBe(1);
+    });
+
+    it('should handle empty file list', () => {
+      const analysis = fileFilter.getEnhancedFileCount([]);
+
+      expect(analysis.totalFiles).toBe(0);
+      expect(analysis.includedFiles).toBe(0);
+      expect(analysis.excludedFiles).toBe(0);
+      expect(analysis.summary.totalSize).toBe(0);
+      expect(analysis.summary.totalLines).toBe(0);
+      expect(analysis.summary.averageSize).toBe(0);
+      expect(analysis.summary.averageLines).toBe(0);
+      expect(analysis.summary.largestFile).toBeNull();
+      expect(analysis.summary.smallestFile).toBeNull();
+      expect(analysis.summary.mostComplexFile).toBeNull();
+    });
+
+    it('should validate file data integrity', () => {
+      const files = [
+        { filename: 'valid.js', lines: 100, size: 2048 },
+        { filename: '', lines: -5, size: 'invalid' }, // Invalid data
+        { filename: 'another.js', lines: 50, size: 1024 }
+      ];
+
+      const analysis = fileFilter.getEnhancedFileCount(files);
+
+      expect(analysis.totalFiles).toBe(3);
+      expect(analysis.validation.valid).toBe(2);
+      expect(analysis.validation.invalid).toBe(1);
+      expect(analysis.validation.errors).toHaveLength(1);
+    });
+
+    it('should calculate complexity scores correctly', () => {
+      const files = [
+        { filename: 'simple.js', lines: 10, size: 1024, priority: 30 },
+        { filename: 'complex.js', lines: 200, size: 8192, priority: 90 },
+        { filename: 'medium.js', lines: 75, size: 2048, priority: 60 }
+      ];
+
+      const analysis = fileFilter.getEnhancedFileCount(files);
+
+      // Most complex file should be the one with highest lines + size + priority
+      expect(analysis.summary.mostComplexFile).toBe('complex.js');
+    });
+  });
 });

@@ -12,14 +12,27 @@
     "test:performance": "jest --testPathPattern=performance",
     "test:unit": "jest --testPathPattern=unit",
     "test:integration": "jest --testPathPattern=integration",
+    "test:e2e": "jest --testPathPattern=end-to-end",
     "test:debug": "jest --verbose --detectOpenHandles",
     "test:perf": "node scripts/run-performance-tests.js",
     "test:perf:quick": "node scripts/run-performance-tests.js --quick",
     "test:perf:stress": "node scripts/run-performance-tests.js --stress",
     "test:perf:iterations": "node scripts/run-performance-tests.js --iterations 5",
     "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix",
     "format": "prettier --write src/**/*.js",
-    "test:fix": "jest --passWithNoTests --verbose"
+    "format:check": "prettier --check src/**/*.js",
+    "test:fix": "jest --passWithNoTests --verbose",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e && npm run test:performance",
+    "test:pipeline": "npm run lint && npm run format:check && npm run test:all && npm run test:coverage",
+    "validate": "npm run lint && npm run format:check && npm run test:all",
+    "quality": "node src/cli/code-quality-cli.js",
+    "quality:all": "node src/cli/code-quality-cli.js --all",
+    "quality:gates": "node src/cli/code-quality-cli.js --gates ci",
+    "quality:pre-commit": "node src/cli/code-quality-cli.js --gates preCommit",
+    "quality:pre-push": "node src/cli/code-quality-cli.js --gates prePush",
+    "config:migrate": "node src/cli/config-migration-cli.js",
+    "config:backup": "node src/cli/config-backup-cli.js"
   },
   "keywords": [
     "github-action",
@@ -39,8 +52,13 @@
   },
   "devDependencies": {
     "@vercel/ncc": "^0.38.0",
+    "archiver": "^7.0.1",
     "eslint": "^8.50.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-security": "^3.0.1",
     "jest": "^29.7.0",
-    "prettier": "^3.0.3"
+    "jest-junit": "^16.0.0",
+    "prettier": "^3.0.3",
+    "unzipper": "^0.12.3"
   }
 }

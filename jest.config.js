@@ -73,7 +73,88 @@ module.exports = {
   globalSetup: '<rootDir>/jest.global-setup.js',
   
   // Global test teardown
-  globalTeardown: '<rootDir>/jest.global-teardown.js'
+  globalTeardown: '<rootDir>/jest.global-teardown.js',
+  
+  // Test suite configurations for different test types
+  projects: [
+    {
+      displayName: 'unit',
+      testMatch: [
+        '<rootDir>/tests/unit/**/*.test.js',
+        '<rootDir>/src/**/*.test.js'
+      ],
+      testTimeout: 30000,
+      coverageThreshold: {
+        global: {
+          branches: 85,
+          functions: 85,
+          lines: 85,
+          statements: 85
+        }
+      }
+    },
+    {
+      displayName: 'integration',
+      testMatch: [
+        '<rootDir>/tests/integration/**/*.test.js'
+      ],
+      testTimeout: 120000, // 2 minutes
+      coverageThreshold: {
+        global: {
+          branches: 75,
+          functions: 75,
+          lines: 75,
+          statements: 75
+        }
+      }
+    },
+    {
+      displayName: 'e2e',
+      testMatch: [
+        '<rootDir>/tests/integration/end-to-end.test.js'
+      ],
+      testTimeout: 300000, // 5 minutes
+      coverageThreshold: {
+        global: {
+          branches: 70,
+          functions: 70,
+          lines: 70,
+          statements: 70
+        }
+      }
+    },
+    {
+      displayName: 'performance',
+      testMatch: [
+        '<rootDir>/tests/integration/performance/**/*.test.js'
+      ],
+      testTimeout: 600000, // 10 minutes
+      coverageThreshold: {
+        global: {
+          branches: 60,
+          functions: 60,
+          lines: 60,
+          statements: 60
+        }
+      }
+    }
+  ],
+  
+  // Test results processor for CI
+  testResultsProcessor: 'jest-junit',
+  
+  // Reporters for better test output
+  reporters: [
+    'default',
+    ['jest-junit', {
+      outputDirectory: 'test-results',
+      outputName: 'junit.xml',
+      classNameTemplate: '{classname}',
+      titleTemplate: '{title}',
+      ancestorSeparator: ' › ',
+      usePathForSuiteName: true
+    }]
+  ]
 };
 
 

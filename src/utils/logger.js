@@ -18,6 +18,12 @@ class AuditLogger {
     this.logLevel = config.logging?.log_level || 'info';
     this.includeSensitiveData = config.logging?.include_sensitive_data || false;
     
+    // Debug logging configuration
+    this.debugMode = config.logging?.debug_mode || false;
+    this.verboseLogging = config.logging?.verbose_logging || false;
+    this.debugCategories = config.logging?.debug_categories || ['all'];
+    this.debugFilters = config.logging?.debug_filters || [];
+    
     // Audit trail tracking
     this.auditTrail = [];
     this.maxTrailSize = config.logging?.max_audit_trail_size || 1000;
@@ -58,6 +64,62 @@ class AuditLogger {
   }
 
   /**
+   * Check if a log level should be logged based on current configuration
+   * @param {string} level - Log level to check
+   * @param {string} category - Optional category for debug filtering
+   * @returns {boolean} Whether the log level should be logged
+   */
+  shouldLog(level, category = null) {
+    // Define log level hierarchy
+    const logLevels = {
+      'error': 0,
+      'warn': 1,
+      'info': 2,
+      'debug': 3,
+      'trace': 4
+    };
+    
+    const currentLevel = logLevels[this.logLevel.toLowerCase()] || 2; // Default to info
+    const requestedLevel = logLevels[level.toLowerCase()] || 2;
+    
+    // Check basic log level
+    if (requestedLevel > currentLevel) {
+      return false;
+    }
+    
+    // Check debug mode for debug and trace levels
+    if ((level === 'debug' || level === 'trace') && !this.debugMode) {
+      return false;
+    }
+    
+    // Check debug categories if category is specified
+    if (category && this.debugCategories.length > 0) {
+      if (!this.debugCategories.includes('all') && !this.debugCategories.includes(category)) {
+        return false;
+      }
+    }
+    
+    // Check debug filters
+    if (this.debugFilters.length > 0) {
+      const shouldFilter = this.debugFilters.some(filter => {
+        if (filter.type === 'exclude' && filter.pattern) {
+          return new RegExp(filter.pattern).test(category || '');
+        }
+        if (filter.type === 'include' && filter.pattern) {
+          return new RegExp(filter.pattern).test(category || '');
+        }
+        return false;
+      });
+      
+      if (shouldFilter) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  /**
    * Initialize log directory
    */
   async initializeLogDirectory() {
@@ -77,6 +139,17 @@ class AuditLogger {
    * @returns {Promise<Object>} Log entry information
    */
   async logEvent(eventType, data = {}, level = 'info', context = {}) {
+    // Check if this log level should be logged
+    if (!this.shouldLog(level, context.category)) {
+      return {
+        auditId: null,
+        logged: false,
+        reason: 'log_level_filtered',
+        level,
+        eventType
+      };
+    }
+
     const timestamp = new Date().toISOString();
     const auditId = this.generateAuditId();
     
@@ -123,6 +196,8 @@ class AuditLogger {
       timestamp,
       level,
       eventType,
+      data: logEntry.data,
+      context: logEntry.context,
       complianceValid: this.complianceMode ? this.validateComplianceFields(logEntry).valid : true
     };
   }
@@ -847,6 +922,1009 @@ class AuditLogger {
 
   async logDebug(eventType, data = {}, context = {}) {
     return this.logEvent(eventType, data, 'debug', context);
+  }
+
+  /**
+   * Configure debug logging
+   * @param {Object} config - Debug logging configuration
+   */
+  configureDebugLogging(config) {
+    if (config.debug_mode !== undefined) {
+      this.debugMode = config.debug_mode;
+    }
+    
+    if (config.verbose_logging !== undefined) {
+      this.verboseLogging = config.verbose_logging;
+    }
+    
+    if (config.debug_categories) {
+      this.debugCategories = Array.isArray(config.debug_categories) 
+        ? config.debug_categories 
+        : [config.debug_categories];
+    }
+    
+    if (config.debug_filters) {
+      this.debugFilters = Array.isArray(config.debug_filters) 
+        ? config.debug_filters 
+        : [config.debug_filters];
+    }
+    
+    if (config.log_level) {
+      this.logLevel = config.log_level;
+    }
+    
+    // Log the configuration change
+    console.log('🔧 Debug logging configured:', {
+      debugMode: this.debugMode,
+      verboseLogging: this.verboseLogging,
+      logLevel: this.logLevel,
+      debugCategories: this.debugCategories,
+      debugFilters: this.debugFilters
+    });
+  }
+
+  /**
+   * Get debug logging configuration
+   * @returns {Object} Current debug logging configuration
+   */
+  getDebugConfig() {
+    return {
+      debugMode: this.debugMode,
+      verboseLogging: this.verboseLogging,
+      logLevel: this.logLevel,
+      debugCategories: this.debugCategories,
+      debugFilters: this.debugFilters,
+      enableConsole: this.enableConsole,
+      enableFileLogging: this.enableFileLogging
+    };
+  }
+
+  /**
+   * Enable debug mode
+   * @param {Array} categories - Optional categories to enable
+   */
+  enableDebugMode(categories = ['all']) {
+    this.debugMode = true;
+    this.debugCategories = categories;
+    this.logLevel = 'debug';
+    console.log('🔧 Debug mode enabled for categories:', categories);
+  }
+
+  /**
+   * Disable debug mode
+   */
+  disableDebugMode() {
+    this.debugMode = false;
+    this.logLevel = 'info';
+    console.log('🔧 Debug mode disabled');
+  }
+
+  /**
+   * Add debug category
+   * @param {string} category - Category to add
+   */
+  addDebugCategory(category) {
+    if (!this.debugCategories.includes(category)) {
+      this.debugCategories.push(category);
+      console.log(`🔧 Added debug category: ${category}`);
+    }
+  }
+
+  /**
+   * Remove debug category
+   * @param {string} category - Category to remove
+   */
+  removeDebugCategory(category) {
+    const index = this.debugCategories.indexOf(category);
+    if (index > -1) {
+      this.debugCategories.splice(index, 1);
+      console.log(`🔧 Removed debug category: ${category}`);
+    }
+  }
+
+  /**
+   * Add debug filter
+   * @param {Object} filter - Filter configuration {type: 'include'|'exclude', pattern: 'regex'}
+   */
+  addDebugFilter(filter) {
+    if (filter.type && filter.pattern) {
+      this.debugFilters.push(filter);
+      console.log(`🔧 Added debug filter: ${filter.type} ${filter.pattern}`);
+    }
+  }
+
+  /**
+   * Remove debug filter
+   * @param {string} pattern - Pattern to remove
+   */
+  removeDebugFilter(pattern) {
+    const index = this.debugFilters.findIndex(f => f.pattern === pattern);
+    if (index > -1) {
+      this.debugFilters.splice(index, 1);
+      console.log(`🔧 Removed debug filter: ${pattern}`);
+    }
+  }
+
+  /**
+   * Convenience method for debug logging
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   */
+  async debug(eventType, data = {}, context = {}) {
+    return this.logEvent(eventType, data, 'debug', context);
+  }
+
+  /**
+   * Convenience method for trace logging
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   */
+  async trace(eventType, data = {}, context = {}) {
+    return this.logEvent(eventType, data, 'trace', context);
+  }
+
+  /**
+   * Test debug configuration
+   * @returns {Object} Test results
+   */
+  testDebugConfig() {
+    const testResults = {
+      debugMode: this.debugMode,
+      verboseLogging: this.verboseLogging,
+      logLevel: this.logLevel,
+      debugCategories: this.debugCategories,
+      debugFilters: this.debugFilters,
+      tests: {}
+    };
+
+    // Test log level filtering
+    testResults.tests.logLevelFiltering = {
+      error: this.shouldLog('error'),
+      warn: this.shouldLog('warn'),
+      info: this.shouldLog('info'),
+      debug: this.shouldLog('debug'),
+      trace: this.shouldLog('trace')
+    };
+
+    // Test category filtering
+    testResults.tests.categoryFiltering = {
+      'ai-review': this.shouldLog('debug', 'ai-review'),
+      'file-detection': this.shouldLog('debug', 'file-detection'),
+      'github-api': this.shouldLog('debug', 'github-api'),
+      'unknown-category': this.shouldLog('debug', 'unknown-category')
+    };
+
+    // Test filter functionality
+    testResults.tests.filterFunctionality = {
+      filtersConfigured: this.debugFilters.length > 0,
+      filterTypes: this.debugFilters.map(f => f.type)
+    };
+
+    return testResults;
+  }
+
+  /**
+   * Enhanced verbose logging for development environments
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {string} level - Log level
+   * @param {Object} context - Additional context information
+   * @param {Object} verboseOptions - Verbose logging options
+   * @returns {Promise<Object>} Log entry information
+   */
+  async logVerbose(eventType, data = {}, level = 'info', context = {}, verboseOptions = {}) {
+    if (!this.verboseLogging) {
+      // Fall back to regular logging if verbose is disabled
+      return this.logEvent(eventType, data, level, context);
+    }
+
+    // Enhanced context for verbose logging
+    const enhancedContext = {
+      ...context,
+      verbose: true,
+      timestamp: new Date().toISOString(),
+      processId: process.pid,
+      memoryUsage: process.memoryUsage(),
+      uptime: process.uptime(),
+      nodeVersion: process.version,
+      platform: process.platform,
+      arch: process.arch,
+      ...verboseOptions
+    };
+
+    // Enhanced data for verbose logging
+    const enhancedData = {
+      ...data,
+      _verbose: {
+        callStack: this.getCallStack(),
+        functionName: this.getCallerFunctionName(),
+        lineNumber: this.getCallerLineNumber(),
+        fileName: this.getCallerFileName(),
+        executionTime: Date.now(),
+        memorySnapshot: this.getMemorySnapshot()
+      }
+    };
+
+    // Log with enhanced information
+    return this.logEvent(eventType, enhancedData, level, enhancedContext);
+  }
+
+  /**
+   * Get call stack information for verbose logging
+   * @returns {Array} Call stack information
+   */
+  getCallStack() {
+    try {
+      const stack = new Error().stack;
+      if (!stack) return ['Unable to capture call stack'];
+      
+      return stack
+        .split('\n')
+        .slice(3) // Skip Error constructor and getCallStack calls
+        .map(line => line.trim())
+        .filter(line => line && !line.includes('node_modules'))
+        .slice(0, 10); // Limit to first 10 frames
+    } catch (error) {
+      return ['Unable to capture call stack'];
+    }
+  }
+
+  /**
+   * Get caller function name for verbose logging
+   * @returns {string} Function name
+   */
+  getCallerFunctionName() {
+    try {
+      const stack = new Error().stack;
+      if (!stack) return 'unknown';
+      
+      const lines = stack.split('\n');
+      if (lines.length < 4) return 'unknown';
+      
+      const callerLine = lines[3];
+      const match = callerLine.match(/at\s+(.+?)\s+\(/);
+      return match ? match[1] : 'unknown';
+    } catch (error) {
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Get caller line number for verbose logging
+   * @returns {string} Line number
+   */
+  getCallerLineNumber() {
+    try {
+      const stack = new Error().stack;
+      if (!stack) return 'unknown';
+      
+      const lines = stack.split('\n');
+      if (lines.length < 4) return 'unknown';
+      
+      const callerLine = lines[3];
+      const match = callerLine.match(/\((.+):(\d+):(\d+)\)/);
+      return match ? `${match[2]}:${match[3]}` : 'unknown';
+    } catch (error) {
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Get caller file name for verbose logging
+   * @returns {string} File name
+   */
+  getCallerFileName() {
+    try {
+      const stack = new Error().stack;
+      if (!stack) return 'unknown';
+      
+      const lines = stack.split('\n');
+      if (lines.length < 4) return 'unknown';
+      
+      const callerLine = lines[3];
+      const match = callerLine.match(/\((.+):(\d+):(\d+)\)/);
+      if (match) {
+        const fullPath = match[1];
+        return fullPath.split('/').pop() || fullPath.split('\\').pop() || 'unknown';
+      }
+      return 'unknown';
+    } catch (error) {
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Get memory snapshot for verbose logging
+   * @returns {Object} Memory usage information
+   */
+  getMemorySnapshot() {
+    try {
+      const memUsage = process.memoryUsage();
+      return {
+        rss: this.formatBytes(memUsage.rss),
+        heapTotal: this.formatBytes(memUsage.heapTotal),
+        heapUsed: this.formatBytes(memUsage.heapUsed),
+        external: this.formatBytes(memUsage.external),
+        arrayBuffers: this.formatBytes(memUsage.arrayBuffers || 0)
+      };
+    } catch (error) {
+      return { error: 'Unable to capture memory snapshot' };
+    }
+  }
+
+  /**
+   * Format bytes to human readable format
+   * @param {number} bytes - Number of bytes
+   * @returns {string} Formatted string
+   */
+  formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  /**
+   * Verbose debug logging with enhanced context
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   * @param {Object} verboseOptions - Verbose logging options
+   */
+  async verboseDebug(eventType, data = {}, context = {}, verboseOptions = {}) {
+    return this.logVerbose(eventType, data, 'debug', context, verboseOptions);
+  }
+
+  /**
+   * Verbose trace logging with enhanced context
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   * @param {Object} verboseOptions - Verbose logging options
+   */
+  async verboseTrace(eventType, data = {}, context = {}, verboseOptions = {}) {
+    return this.logVerbose(eventType, data, 'trace', context, verboseOptions);
+  }
+
+  /**
+   * Verbose info logging with enhanced context
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   * @param {Object} verboseOptions - Verbose logging options
+   */
+  async verboseInfo(eventType, data = {}, context = {}, verboseOptions = {}) {
+    return this.logVerbose(eventType, data, 'info', context, verboseOptions);
+  }
+
+  /**
+   * Verbose warn logging with enhanced context
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   * @param {Object} verboseOptions - Verbose logging options
+   */
+  async verboseWarn(eventType, data = {}, context = {}, verboseOptions = {}) {
+    return this.logVerbose(eventType, data, 'warn', context, verboseOptions);
+  }
+
+  /**
+   * Verbose error logging with enhanced context
+   * @param {string} eventType - Type of audit event
+   * @param {Object} data - Event data
+   * @param {Object} context - Additional context information
+   * @param {Object} verboseOptions - Verbose logging options
+   */
+  async verboseError(eventType, data = {}, context = {}, verboseOptions = {}) {
+    return this.logVerbose(eventType, data, 'error', context, verboseOptions);
+  }
+
+  /**
+   * Enable verbose logging mode
+   * @param {boolean} enabled - Whether to enable verbose logging
+   * @param {Object} options - Verbose logging options
+   */
+  enableVerboseLogging(enabled = true, options = {}) {
+    this.verboseLogging = enabled;
+    
+    if (enabled) {
+      console.log('🔧 Verbose logging enabled with options:', options);
+      
+      // Set debug mode if verbose is enabled
+      if (!this.debugMode) {
+        this.debugMode = true;
+        console.log('🔧 Debug mode automatically enabled for verbose logging');
+      }
+      
+      // Set log level to trace if verbose is enabled
+      if (this.logLevel === 'info') {
+        this.logLevel = 'trace';
+        console.log('🔧 Log level automatically set to trace for verbose logging');
+      }
+    } else {
+      console.log('🔧 Verbose logging disabled');
+    }
+  }
+
+  /**
+   * Get verbose logging configuration
+   * @returns {Object} Verbose logging configuration
+   */
+  getVerboseConfig() {
+    return {
+      verboseLogging: this.verboseLogging,
+      debugMode: this.debugMode,
+      logLevel: this.logLevel,
+      debugCategories: this.debugCategories,
+      debugFilters: this.debugFilters,
+      enableConsole: this.enableConsole,
+      enableFileLogging: this.enableFileLogging
+    };
+  }
+
+  /**
+   * Test verbose logging functionality
+   * @returns {Object} Test results
+   */
+  testVerboseLogging() {
+    const testResults = {
+      verboseLogging: this.verboseLogging,
+      debugMode: this.debugMode,
+      logLevel: this.logLevel,
+      tests: {}
+    };
+
+    // Test verbose logging methods
+    testResults.tests.verboseMethods = {
+      verboseDebug: typeof this.verboseDebug === 'function',
+      verboseTrace: typeof this.verboseTrace === 'function',
+      verboseInfo: typeof this.verboseInfo === 'function',
+      verboseWarn: typeof this.verboseWarn === 'function',
+      verboseError: typeof this.verboseError === 'function'
+    };
+
+    // Test utility methods
+    testResults.tests.utilityMethods = {
+      getCallStack: typeof this.getCallStack === 'function',
+      getCallerFunctionName: typeof this.getCallerFunctionName === 'function',
+      getCallerLineNumber: typeof this.getCallerLineNumber === 'function',
+      getCallerFileName: typeof this.getCallerFileName === 'function',
+      getMemorySnapshot: typeof this.getMemorySnapshot === 'function',
+      formatBytes: typeof this.formatBytes === 'function'
+    };
+
+    return testResults;
+  }
+
+  /**
+   * Search logs by various criteria
+   * @param {Object} searchCriteria - Search criteria
+   * @returns {Promise<Array>} Matching log entries
+   */
+  async searchLogs(searchCriteria = {}) {
+    const {
+      query = '',
+      startDate = null,
+      endDate = null,
+      eventType = null,
+      level = null,
+      category = null,
+      repository = null,
+      user = null,
+      branch = null,
+      commitSha = null,
+      sessionId = null,
+      limit = 1000,
+      offset = 0,
+      sortBy = 'timestamp',
+      sortOrder = 'desc'
+    } = searchCriteria;
+
+    try {
+      const results = [];
+      const files = await fs.readdir(this.logDir);
+      const logFiles = files.filter(file => file.startsWith('audit-') && file.endsWith('.jsonl'));
+      
+      // Sort files by date (newest first)
+      logFiles.sort().reverse();
+      
+      for (const file of logFiles) {
+        if (results.length >= limit) break;
+        
+        const filePath = path.join(this.logDir, file);
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.trim().split('\n');
+        
+        for (const line of lines) {
+          if (!line.trim() || results.length >= limit) break;
+          
+          try {
+            const logEntry = JSON.parse(line);
+            
+            // Apply filters
+            if (!this.matchesSearchCriteria(logEntry, {
+              query, startDate, endDate, eventType, level, category,
+              repository, user, branch, commitSha, sessionId
+            })) {
+              continue;
+            }
+            
+            results.push(logEntry);
+          } catch (parseError) {
+            // Skip malformed entries
+            continue;
+          }
+        }
+      }
+      
+      // Sort results
+      results.sort((a, b) => {
+        let aValue = a[sortBy];
+        let bValue = b[sortBy];
+        
+        if (sortBy === 'timestamp') {
+          aValue = new Date(aValue).getTime();
+          bValue = new Date(bValue).getTime();
+        }
+        
+        if (sortOrder === 'asc') {
+          return aValue > bValue ? 1 : -1;
+        } else {
+          return aValue < bValue ? 1 : -1;
+        }
+      });
+      
+      // Apply offset and limit
+      return results.slice(offset, offset + limit);
+      
+    } catch (error) {
+      console.error('Error searching logs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if a log entry matches search criteria
+   * @param {Object} logEntry - Log entry to check
+   * @param {Object} criteria - Search criteria
+   * @returns {boolean} Whether the entry matches
+   */
+  matchesSearchCriteria(logEntry, criteria) {
+    const {
+      query, startDate, endDate, eventType, level, category,
+      repository, user, branch, commitSha, sessionId
+    } = criteria;
+    
+    // Date range filter
+    if (startDate || endDate) {
+      const entryDate = new Date(logEntry.timestamp);
+      if (startDate && entryDate < new Date(startDate)) return false;
+      if (endDate && entryDate > new Date(endDate)) return false;
+    }
+    
+    // Exact match filters
+    if (eventType && logEntry.event_type !== eventType) return false;
+    if (level && logEntry.level !== level) return false;
+    if (category && logEntry.context?.category !== category) return false;
+    if (repository && logEntry.context?.repository !== repository) return false;
+    if (user && logEntry.context?.user !== user) return false;
+    if (branch && logEntry.context?.branch !== branch) return false;
+    if (commitSha && logEntry.context?.commit_sha !== commitSha) return false;
+    if (sessionId && logEntry.context?.session_id !== sessionId) return false;
+    
+    // Text query filter
+    if (query) {
+      const searchText = query.toLowerCase();
+      const entryText = JSON.stringify(logEntry).toLowerCase();
+      if (!entryText.includes(searchText)) return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Advanced log filtering with multiple criteria
+   * @param {Object} filters - Filter criteria
+   * @returns {Promise<Array>} Filtered log entries
+   */
+  async filterLogs(filters = {}) {
+    const {
+      include = {},
+      exclude = {},
+      dateRange = {},
+      customFilter = null
+    } = filters;
+    
+    try {
+      const results = [];
+      const files = await fs.readdir(this.logDir);
+      const logFiles = files.filter(file => file.startsWith('audit-') && file.endsWith('.jsonl'));
+      
+      for (const file of logFiles) {
+        const filePath = path.join(this.logDir, file);
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.trim().split('\n');
+        
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          
+          try {
+            const logEntry = JSON.parse(line);
+            
+            // Apply include filters
+            if (!this.matchesIncludeFilters(logEntry, include)) continue;
+            
+            // Apply exclude filters
+            if (this.matchesExcludeFilters(logEntry, exclude)) continue;
+            
+            // Apply date range filters
+            if (!this.matchesDateRange(logEntry, dateRange)) continue;
+            
+            // Apply custom filter
+            if (customFilter && !customFilter(logEntry)) continue;
+            
+            results.push(logEntry);
+          } catch (parseError) {
+            continue;
+          }
+        }
+      }
+      
+      return results;
+      
+    } catch (error) {
+      console.error('Error filtering logs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if log entry matches include filters
+   * @param {Object} logEntry - Log entry to check
+   * @param {Object} include - Include filters
+   * @returns {boolean} Whether the entry matches include filters
+   */
+  matchesIncludeFilters(logEntry, include) {
+    for (const [field, values] of Object.entries(include)) {
+      if (!Array.isArray(values)) continue;
+      
+      const entryValue = this.getNestedValue(logEntry, field);
+      if (!values.includes(entryValue)) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Check if log entry matches exclude filters
+   * @param {Object} logEntry - Log entry to check
+   * @param {Object} exclude - Exclude filters
+   * @returns {boolean} Whether the entry matches exclude filters
+   */
+  matchesExcludeFilters(logEntry, exclude) {
+    for (const [field, values] of Object.entries(exclude)) {
+      if (!Array.isArray(values)) continue;
+      
+      const entryValue = this.getNestedValue(logEntry, field);
+      if (values.includes(entryValue)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if log entry matches date range
+   * @param {Object} logEntry - Log entry to check
+   * @param {Object} dateRange - Date range filters
+   * @returns {boolean} Whether the entry matches date range
+   */
+  matchesDateRange(logEntry, dateRange) {
+    const { start, end, before, after } = dateRange;
+    const entryDate = new Date(logEntry.timestamp);
+    
+    if (start && entryDate < new Date(start)) return false;
+    if (end && entryDate > new Date(end)) return false;
+    if (before && entryDate >= new Date(before)) return false;
+    if (after && entryDate <= new Date(after)) return false;
+    
+    return true;
+  }
+
+  /**
+   * Get nested value from object using dot notation
+   * @param {Object} obj - Object to search
+   * @param {string} path - Dot notation path
+   * @returns {*} Value at path
+   */
+  getNestedValue(obj, path) {
+    return path.split('.').reduce((current, key) => {
+      return current && current[key] !== undefined ? current[key] : undefined;
+    }, obj);
+  }
+
+  /**
+   * Create log search index for faster searching
+   * @param {Object} options - Index options
+   * @returns {Promise<Object>} Search index
+   */
+  async createSearchIndex(options = {}) {
+    const {
+      fields = ['event_type', 'level', 'context.repository', 'context.user', 'context.branch'],
+      rebuild = false
+    } = options;
+    
+    try {
+      const indexFile = path.join(this.logDir, 'search-index.json');
+      
+      // Check if index exists and is recent
+      if (!rebuild) {
+        try {
+          const stats = await fs.stat(indexFile);
+          const indexAge = Date.now() - stats.mtime.getTime();
+          const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+          
+          if (indexAge < maxAge) {
+            const indexContent = await fs.readFile(indexFile, 'utf8');
+            return JSON.parse(indexContent);
+          }
+        } catch (error) {
+          // Index doesn't exist or is corrupted
+        }
+      }
+      
+      console.log('🔍 Creating search index...');
+      const index = {
+        created: new Date().toISOString(),
+        fields: fields,
+        entries: new Map(),
+        fieldValues: {}
+      };
+      
+      // Initialize field values
+      fields.forEach(field => {
+        index.fieldValues[field] = new Set();
+      });
+      
+      const files = await fs.readdir(this.logDir);
+      const logFiles = files.filter(file => file.startsWith('audit-') && file.endsWith('.jsonl'));
+      
+      for (const file of logFiles) {
+        const filePath = path.join(this.logDir, file);
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.trim().split('\n');
+        
+        for (const [lineIndex, line] of lines.entries()) {
+          if (!line.trim()) continue;
+          
+          try {
+            const logEntry = JSON.parse(line);
+            const entryId = `${file}:${lineIndex}`;
+            
+            // Index by fields
+            fields.forEach(field => {
+              const value = this.getNestedValue(logEntry, field);
+              if (value !== undefined) {
+                if (!index.fieldValues[field].has(value)) {
+                  index.fieldValues[field].add(value);
+                }
+                
+                if (!index.entries.has(value)) {
+                  index.entries.set(value, []);
+                }
+                index.entries.get(value).push(entryId);
+              }
+            });
+            
+          } catch (parseError) {
+            continue;
+          }
+        }
+      }
+      
+      // Convert Map to plain object for serialization
+      const serializableIndex = {
+        ...index,
+        entries: Object.fromEntries(index.entries),
+        fieldValues: Object.fromEntries(
+          Object.entries(index.fieldValues).map(([key, value]) => [key, Array.from(value)])
+        )
+      };
+      
+      // Save index
+      await fs.writeFile(indexFile, JSON.stringify(serializableIndex, null, 2));
+      console.log('✅ Search index created successfully');
+      
+      return serializableIndex;
+      
+    } catch (error) {
+      console.error('Error creating search index:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Search logs using index for better performance
+   * @param {Object} searchCriteria - Search criteria
+   * @param {Object} index - Search index
+   * @returns {Promise<Array>} Matching log entries
+   */
+  async searchLogsWithIndex(searchCriteria = {}, index = null) {
+    if (!index) {
+      index = await this.createSearchIndex();
+    }
+    
+    if (!index) {
+      // Fall back to regular search if index creation fails
+      return this.searchLogs(searchCriteria);
+    }
+    
+    try {
+      const results = [];
+      const { eventType, level, repository, user, branch } = searchCriteria;
+      
+      // Use index to find matching entries
+      const matchingIds = new Set();
+      
+      if (eventType && index.entries[eventType]) {
+        index.entries[eventType].forEach(id => matchingIds.add(id));
+      }
+      
+      if (level && index.entries[level]) {
+        index.entries[level].forEach(id => matchingIds.add(id));
+      }
+      
+      if (repository && index.entries[repository]) {
+        index.entries[repository].forEach(id => matchingIds.add(id));
+      }
+      
+      if (user && index.entries[user]) {
+        index.entries[user].forEach(id => matchingIds.add(id));
+      }
+      
+      if (branch && index.entries[branch]) {
+        index.entries[branch].forEach(id => matchingIds.add(id));
+      }
+      
+      // If no specific filters, return all entries
+      if (matchingIds.size === 0) {
+        return this.searchLogs(searchCriteria);
+      }
+      
+      // Retrieve matching entries
+      for (const entryId of matchingIds) {
+        const [filename, lineIndex] = entryId.split(':');
+        const filePath = path.join(this.logDir, filename);
+        
+        try {
+          const content = await fs.readFile(filePath, 'utf8');
+          const lines = content.trim().split('\n');
+          const line = lines[parseInt(lineIndex)];
+          
+          if (line) {
+            const logEntry = JSON.parse(line);
+            if (this.matchesSearchCriteria(logEntry, searchCriteria)) {
+              results.push(logEntry);
+            }
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      
+      return results;
+      
+    } catch (error) {
+      console.error('Error searching logs with index:', error);
+      return this.searchLogs(searchCriteria);
+    }
+  }
+
+  /**
+   * Get log statistics and analytics
+   * @param {Object} options - Analytics options
+   * @returns {Promise<Object>} Log statistics
+   */
+  async getLogStatistics(options = {}) {
+    const {
+      startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+      endDate = new Date(),
+      groupBy = 'hour' // hour, day, week, month
+    } = options;
+    
+    try {
+      const stats = {
+        period: { start: startDate, end: endDate },
+        totalEntries: 0,
+        byEventType: {},
+        byLevel: {},
+        byRepository: {},
+        byUser: {},
+        byTime: {},
+        topEvents: [],
+        topUsers: [],
+        topRepositories: []
+      };
+      
+      const entries = await this.searchLogs({
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        limit: 10000
+      });
+      
+      stats.totalEntries = entries.length;
+      
+      // Process each entry
+      entries.forEach(entry => {
+        // Count by event type
+        const eventType = entry.event_type || 'unknown';
+        stats.byEventType[eventType] = (stats.byEventType[eventType] || 0) + 1;
+        
+        // Count by level
+        const level = entry.level || 'unknown';
+        stats.byLevel[level] = (stats.byLevel[level] || 0) + 1;
+        
+        // Count by repository
+        const repo = entry.context?.repository || 'unknown';
+        stats.byRepository[repo] = (stats.byRepository[repo] || 0) + 1;
+        
+        // Count by user
+        const user = entry.context?.user || 'unknown';
+        stats.byUser[user] = (stats.byUser[user] || 0) + 1;
+        
+        // Count by time
+        const entryDate = new Date(entry.timestamp);
+        const timeKey = this.getTimeGroupKey(entryDate, groupBy);
+        stats.byTime[timeKey] = (stats.byTime[timeKey] || 0) + 1;
+      });
+      
+      // Generate top lists
+      stats.topEvents = Object.entries(stats.byEventType)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10)
+        .map(([event, count]) => ({ event, count }));
+      
+      stats.topUsers = Object.entries(stats.byUser)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10)
+        .map(([user, count]) => ({ user, count }));
+      
+      stats.topRepositories = Object.entries(stats.byRepository)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10)
+        .map(([repo, count]) => ({ repo, count }));
+      
+      return stats;
+      
+    } catch (error) {
+      console.error('Error generating log statistics:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get time group key for grouping statistics
+   * @param {Date} date - Date to group
+   * @param {string} groupBy - Grouping strategy
+   * @returns {string} Time group key
+   */
+  getTimeGroupKey(date, groupBy) {
+    switch (groupBy) {
+      case 'hour':
+        return date.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+      case 'day':
+        return date.toISOString().slice(0, 10); // YYYY-MM-DD
+      case 'week':
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        return weekStart.toISOString().slice(0, 10);
+      case 'month':
+        return date.toISOString().slice(0, 7); // YYYY-MM
+      default:
+        return date.toISOString().slice(0, 10);
+    }
   }
 }
 

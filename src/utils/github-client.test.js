@@ -602,6 +602,396 @@ describe('GitHubClient', () => {
     });
   });
 
+  describe('getCommitFiles', () => {
+    beforeEach(() => {
+      process.env.GITHUB_TOKEN = 'test-token';
+      githubClient = new GitHubClient();
+      
+      // Setup mock octokit for commit files
+      mockOctokit.rest.repos.getCommit = jest.fn();
+    });
+
+    afterEach(() => {
+      delete process.env.GITHUB_TOKEN;
+    });
+
+    test('should retrieve files from commit successfully', async () => {
+      const mockCommitResponse = {
+        data: {
+          files: [
+            {
+              filename: 'src/main.js',
+              status: 'modified',
+              additions: 10,
+              deletions: 5,
+              changes: 15,
+              sha: 'abc123',
+              blob_url: 'https://github.com/test-owner/test-repo/blob/abc123/src/main.js',
+              raw_url: 'https://raw.githubusercontent.com/test-owner/test-repo/abc123/src/main.js'
+            },
+            {
+              filename: 'src/utils.js',
+              status: 'added',
+              additions: 25,
+              deletions: 0,
+              changes: 25,
+              sha: 'def456',
+              blob_url: 'https://github.com/test-owner/test-repo/blob/def456/src/utils.js',
+              raw_url: 'https://raw.githubusercontent.com/test-owner/test-repo/def456/src/utils.js'
+            }
+          ]
+        }
+      };
+
+      mockOctokit.rest.repos.getCommit.mockResolvedValue(mockCommitResponse);
+
+      const files = await githubClient.getCommitFiles('abc123def456');
+
+      expect(mockOctokit.rest.repos.getCommit).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        ref: 'abc123def456'
+      });
+
+      expect(files).toHaveLength(2);
+      expect(files[0]).toEqual({
+        filename: 'src/main.js',
+        status: 'modified',
+        additions: 10,
+        deletions: 5,
+        changes: 15,
+        lines: 15,
+        patch: '',
+        sha: 'abc123',
+        blob_url: 'https://github.com/test-owner/test-repo/blob/abc123/src/main.js',
+        raw_url: 'https://raw.githubusercontent.com/test-owner/test-repo/abc123/src/main.js'
+      });
+      expect(files[1]).toEqual({
+        filename: 'src/utils.js',
+        status: 'added',
+        additions: 25,
+        deletions: 0,
+        changes: 25,
+        lines: 25,
+        patch: '',
+        sha: 'def456',
+        blob_url: 'https://github.com/test-owner/test-repo/blob/def456/src/utils.js',
+        raw_url: 'https://raw.githubusercontent.com/test-owner/test-repo/def456/src/utils.js'
+      });
+    });
+
+    test('should handle commit with no files', async () => {
+      const mockCommitResponse = {
+        data: {
+          files: []
+        }
+      };
+
+      mockOctokit.rest.repos.getCommit.mockResolvedValue(mockCommitResponse);
+
+      const files = await githubClient.getCommitFiles('abc123def456');
+
+      expect(files).toHaveLength(0);
+    });
+
+    test('should handle commit response without files property', async () => {
+      const mockCommitResponse = {
+        data: {}
+      };
+
+      mockOctokit.rest.repos.getCommit.mockResolvedValue(mockCommitResponse);
+
+      const files = await githubClient.getCommitFiles('abc123def456');
+
+      expect(files).toHaveLength(0);
+    });
+
+    test('should handle null commit response', async () => {
+      const mockCommitResponse = {
+        data: null
+      };
+
+      mockOctokit.rest.repos.getCommit.mockResolvedValue(mockCommitResponse);
+
+      const files = await githubClient.getCommitFiles('abc123def456');
+
+      expect(files).toHaveLength(0);
+    });
+
+    test('should handle files with missing optional properties', async () => {
+      const mockCommitResponse = {
+        data: {
+          files: [
+            {
+              filename: 'src/test.js',
+              status: 'deleted'
+              // Missing additions, deletions, changes, sha, etc.
+            }
+          ]
+        }
+      };
+
+      mockOctokit.rest.repos.getCommit.mockResolvedValue(mockCommitResponse);
+
+      const files = await githubClient.getCommitFiles('abc123def456');
+
+      expect(files).toHaveLength(1);
+      expect(files[0]).toEqual({
+        filename: 'src/test.js',
+        status: 'deleted',
+        additions: 0,
+        deletions: 0,
+        changes: 0,
+        lines: 0,
+        patch: '',
+        sha: '',
+        blob_url: '',
+        raw_url: ''
+      });
+    });
+
+    test('should throw error for invalid commit SHA', async () => {
+      await expect(githubClient.getCommitFiles('abc')).rejects.toThrow('Invalid commit SHA provided');
+      await expect(githubClient.getCommitFiles('')).rejects.toThrow('Invalid commit SHA provided');
+      await expect(githubClient.getCommitFiles(null)).rejects.toThrow('Invalid commit SHA provided');
+      await expect(githubClient.getCommitFiles(undefined)).rejects.toThrow('Invalid commit SHA provided');
+    });
+
+    test('should handle GitHub API errors gracefully', async () => {
+      const apiError = new Error('GitHub API Error');
+      apiError.status = 404;
+      apiError.response = {
+        data: {
+          message: 'Not Found'
+        }
+      };
+
+      mockOctokit.rest.repos.getCommit.mockRejectedValue(apiError);
+
+      const files = await githubClient.getCommitFiles('abc123def456');
+
+      expect(files).toHaveLength(0);
+    });
+
+    test('should handle network errors gracefully', async () => {
+      const networkError = new Error('Network Error');
+      mockOctokit.rest.repos.getCommit.mockRejectedValue(networkError);
+
+      const files = await githubClient.getCommitFiles('abc123def456');
+
+      expect(files).toHaveLength(0);
+    });
+  });
+
+  describe('getPullRequestFiles', () => {
+    beforeEach(() => {
+      process.env.GITHUB_TOKEN = 'test-token';
+      githubClient = new GitHubClient();
+      
+      // Setup mock octokit for PR files
+      mockOctokit.rest.pulls = {
+        listFiles: jest.fn()
+      };
+    });
+
+    afterEach(() => {
+      delete process.env.GITHUB_TOKEN;
+    });
+
+    test('should retrieve files from pull request successfully', async () => {
+      const mockPRResponse = {
+        data: [
+          {
+            filename: 'src/feature.js',
+            status: 'added',
+            additions: 30,
+            deletions: 0,
+            changes: 30,
+            sha: 'ghi789',
+            blob_url: 'https://github.com/test-owner/test-repo/blob/ghi789/src/feature.js',
+            raw_url: 'https://raw.githubusercontent.com/test-owner/test-repo/ghi789/src/feature.js'
+          },
+          {
+            filename: 'src/legacy.js',
+            status: 'deleted',
+            additions: 0,
+            deletions: 15,
+            changes: 15,
+            sha: 'jkl012',
+            blob_url: 'https://github.com/test-owner/test-repo/blob/jkl012/src/legacy.js',
+            raw_url: 'https://raw.githubusercontent.com/test-owner/test-repo/jkl012/src/legacy.js'
+          },
+          {
+            filename: 'src/renamed.js',
+            status: 'renamed',
+            additions: 20,
+            deletions: 20,
+            changes: 40,
+            sha: 'mno345',
+            blob_url: 'https://github.com/test-owner/test-repo/blob/mno345/src/renamed.js',
+            raw_url: 'https://raw.githubusercontent.com/test-owner/test-repo/mno345/src/renamed.js',
+            previous_filename: 'src/old-name.js'
+          }
+        ]
+      };
+
+      mockOctokit.rest.pulls.listFiles.mockResolvedValue(mockPRResponse);
+
+      const files = await githubClient.getPullRequestFiles(123);
+
+      expect(mockOctokit.rest.pulls.listFiles).toHaveBeenCalledWith({
+        owner: 'test-owner',
+        repo: 'test-repo',
+        pull_number: 123
+      });
+
+      expect(files).toHaveLength(3);
+      
+      // Test added file
+      expect(files[0]).toEqual({
+        filename: 'src/feature.js',
+        status: 'added',
+        additions: 30,
+        deletions: 0,
+        changes: 30,
+        lines: 30,
+        patch: '',
+        sha: 'ghi789',
+        blob_url: 'https://github.com/test-owner/test-repo/blob/ghi789/src/feature.js',
+        raw_url: 'https://raw.githubusercontent.com/test-owner/test-repo/ghi789/src/feature.js',
+        previous_filename: null
+      });
+
+      // Test deleted file
+      expect(files[1]).toEqual({
+        filename: 'src/legacy.js',
+        status: 'deleted',
+        additions: 0,
+        deletions: 15,
+        changes: 15,
+        lines: 15,
+        patch: '',
+        sha: 'jkl012',
+        blob_url: 'https://github.com/test-owner/test-repo/blob/jkl012/src/legacy.js',
+        raw_url: 'https://raw.githubusercontent.com/test-owner/test-repo/jkl012/src/legacy.js',
+        previous_filename: null
+      });
+
+      // Test renamed file
+      expect(files[2]).toEqual({
+        filename: 'src/renamed.js',
+        status: 'renamed',
+        additions: 20,
+        deletions: 20,
+        changes: 40,
+        lines: 40,
+        patch: '',
+        sha: 'mno345',
+        blob_url: 'https://github.com/test-owner/test-repo/blob/mno345/src/renamed.js',
+        raw_url: 'https://raw.githubusercontent.com/test-owner/test-repo/mno345/src/renamed.js',
+        previous_filename: 'src/old-name.js'
+      });
+    });
+
+    test('should handle pull request with no files', async () => {
+      const mockPRResponse = {
+        data: []
+      };
+
+      mockOctokit.rest.pulls.listFiles.mockResolvedValue(mockPRResponse);
+
+      const files = await githubClient.getPullRequestFiles(123);
+
+      expect(files).toHaveLength(0);
+    });
+
+    test('should handle PR response without data property', async () => {
+      const mockPRResponse = {};
+
+      mockOctokit.rest.pulls.listFiles.mockResolvedValue(mockPRResponse);
+
+      const files = await githubClient.getPullRequestFiles(123);
+
+      expect(files).toHaveLength(0);
+    });
+
+    test('should handle null PR response', async () => {
+      const mockPRResponse = {
+        data: null
+      };
+
+      mockOctokit.rest.pulls.listFiles.mockResolvedValue(mockPRResponse);
+
+      const files = await githubClient.getPullRequestFiles(123);
+
+      expect(files).toHaveLength(0);
+    });
+
+    test('should handle files with missing optional properties', async () => {
+      const mockPRResponse = {
+        data: [
+          {
+            filename: 'src/minimal.js',
+            status: 'modified'
+            // Missing additions, deletions, changes, sha, etc.
+          }
+        ]
+      };
+
+      mockOctokit.rest.pulls.listFiles.mockResolvedValue(mockPRResponse);
+
+      const files = await githubClient.getPullRequestFiles(123);
+
+      expect(files).toHaveLength(1);
+      expect(files[0]).toEqual({
+        filename: 'src/minimal.js',
+        status: 'modified',
+        additions: 0,
+        deletions: 0,
+        changes: 0,
+        lines: 0,
+        patch: '',
+        sha: '',
+        blob_url: '',
+        raw_url: '',
+        previous_filename: null
+      });
+    });
+
+    test('should throw error for invalid PR number', async () => {
+      await expect(githubClient.getPullRequestFiles(0)).rejects.toThrow('Invalid pull request number provided');
+      await expect(githubClient.getPullRequestFiles(-1)).rejects.toThrow('Invalid pull request number provided');
+      await expect(githubClient.getPullRequestFiles('abc')).rejects.toThrow('Invalid pull request number provided');
+      await expect(githubClient.getPullRequestFiles(null)).rejects.toThrow('Invalid pull request number provided');
+      await expect(githubClient.getPullRequestFiles(undefined)).rejects.toThrow('Invalid pull request number provided');
+    });
+
+    test('should handle GitHub API errors gracefully', async () => {
+      const apiError = new Error('GitHub API Error');
+      apiError.status = 404;
+      apiError.response = {
+        data: {
+          message: 'Pull request not found'
+        }
+      };
+
+      mockOctokit.rest.pulls.listFiles.mockRejectedValue(apiError);
+
+      const files = await githubClient.getPullRequestFiles(123);
+
+      expect(files).toHaveLength(0);
+    });
+
+    test('should handle network errors gracefully', async () => {
+      const networkError = new Error('Network Error');
+      mockOctokit.rest.pulls.listFiles.mockRejectedValue(networkError);
+
+      const files = await githubClient.getPullRequestFiles(123);
+
+      expect(files).toHaveLength(0);
+    });
+  });
+
   describe('Utility methods', () => {
     beforeEach(() => {
       process.env.GITHUB_TOKEN = 'test-token';

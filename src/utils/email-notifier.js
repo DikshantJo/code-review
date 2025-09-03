@@ -152,10 +152,33 @@ class EmailNotifier {
         toEmails = toEmails.split(',').map(email => email.trim()).filter(email => email);
       }
       
-      // If still no emails, use a default
+      // Validate email configuration - no more hardcoded fallbacks
       if (!toEmails || (Array.isArray(toEmails) && toEmails.length === 0)) {
-        toEmails = ['admin@example.com'];
-        console.warn('No email recipients configured, using default admin@example.com');
+        const error = new Error('No email recipients configured. Please set EMAIL_TO environment variable or configure to_emails in project configuration.');
+        console.error('Email configuration error:', error.message);
+        
+        return {
+          sent: false,
+          error: error.message,
+          type: type,
+          reason: 'missing_recipients'
+        };
+      }
+      
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const invalidEmails = toEmails.filter(email => !emailRegex.test(email));
+      
+      if (invalidEmails.length > 0) {
+        const error = new Error(`Invalid email format(s): ${invalidEmails.join(', ')}`);
+        console.error('Email validation error:', error.message);
+        
+        return {
+          sent: false,
+          error: error.message,
+          type: type,
+          reason: 'invalid_email_format'
+        };
       }
       
       const mailOptions = {
@@ -422,6 +445,95 @@ class EmailNotifier {
         error: error.message
       };
     }
+  }
+
+  /**
+   * Validate email configuration
+   * @returns {Object} Validation result
+   */
+  validateEmailConfiguration() {
+    const emailConfig = this.config?.notifications?.email || {};
+    const errors = [];
+    const warnings = [];
+    
+    // Check SMTP configuration
+    if (!this.config?.notifications?.email?.smtp_host && !process.env.SMTP_HOST) {
+      errors.push('SMTP_HOST not configured (via config or environment variable)');
+    }
+    
+    if (!this.config?.notifications?.email?.smtp_user && !process.env.SMTP_USER) {
+      errors.push('SMTP_USER not configured (via config or environment variable)');
+    }
+    
+    if (!this.config?.notifications?.email?.smtp_pass && !process.env.SMTP_PASS) {
+      errors.push('SMTP_PASS not configured (via config or environment variable)');
+    }
+    
+    // Check recipient configuration
+    const toEmails = emailConfig.to_emails || process.env.EMAIL_TO;
+    if (!toEmails) {
+      errors.push('EMAIL_TO not configured (via config or environment variable)');
+    } else {
+      // Validate email format if present
+      const emailList = typeof toEmails === 'string' ? toEmails.split(',').map(e => e.trim()) : toEmails;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      
+      emailList.forEach(email => {
+        if (!emailRegex.test(email)) {
+          errors.push(`Invalid email format: ${email}`);
+        }
+      });
+    }
+    
+    // Check from email configuration
+    if (!emailConfig.from_email && !process.env.EMAIL_FROM) {
+      warnings.push('EMAIL_FROM not configured, using default: ai-review@github.com');
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors: errors,
+      warnings: warnings,
+      isEnabled: this.isEnabled
+    };
+  }
+
+  /**
+   * Get configuration help information
+   * @returns {string} Configuration help text
+   */
+  getConfigurationHelp() {
+    return `
+📧 EMAIL CONFIGURATION HELP
+
+Required Environment Variables:
+  SMTP_HOST     - SMTP server hostname
+  SMTP_USER     - SMTP username
+  SMTP_PASS     - SMTP password
+  EMAIL_TO      - Comma-separated list of recipient emails
+
+Optional Environment Variables:
+  SMTP_PORT     - SMTP port (default: 587)
+  SMTP_SECURE   - Use TLS (default: false)
+  EMAIL_FROM    - From email address (default: ai-review@github.com)
+
+Example .env file:
+  SMTP_HOST=smtp.gmail.com
+  SMTP_USER=your-email@gmail.com
+  SMTP_PASS=your-app-password
+  EMAIL_TO=dev@company.com,qa@company.com
+  EMAIL_FROM=ai-review@company.com
+
+Alternative: Configure via project-level config file:
+  notifications:
+    email:
+      enabled: true
+      smtp_host: smtp.gmail.com
+      smtp_user: your-email@gmail.com
+      smtp_pass: your-app-password
+      to_emails: [dev@company.com, qa@company.com]
+      from_email: ai-review@company.com
+`;
   }
 
   /**

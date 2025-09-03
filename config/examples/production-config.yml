@@ -1,0 +1,886 @@
+# Example: Production-Ready Configuration
+# Use case: Enterprise production environment with full features
+# Best for: Large teams, critical projects, production deployments
+# Last updated: December 19, 2024
+
+# Production configuration
+environment: 'production'
+log_level: 'warn'
+debug_mode: false
+
+# AI Review settings - production optimized
+ai:
+  model: 'gpt-4-turbo-preview'
+  max_tokens: 8000
+  temperature: 0.05
+  timeout_seconds: 120
+  retry_attempts: 3
+  retry_delay_seconds: 5
+  
+  # Production-specific AI settings
+  rate_limiting:
+    requests_per_minute: 20
+    tokens_per_minute: 100000
+    cooldown_minutes: 10
+  
+  # Model fallbacks for reliability
+  fallback_models:
+    - 'gpt-4'
+    - 'gpt-3.5-turbo'
+  
+  # Quality assurance
+  quality_checks:
+    validate_responses: true
+    check_response_length: true
+    validate_json_responses: true
+    max_response_tokens: 6000
+
+# File filtering - comprehensive production setup
+files:
+  include_patterns:
+    # Core application files
+    - '**/*.js'
+    - '**/*.ts'
+    - '**/*.tsx'
+    - '**/*.jsx'
+    - '**/*.py'
+    - '**/*.java'
+    - '**/*.cs'
+    - '**/*.go'
+    - '**/*.rs'
+    - '**/*.php'
+    - '**/*.rb'
+    - '**/*.scala'
+    - '**/*.kt'
+    - '**/*.swift'
+    - '**/*.m'
+    - '**/*.cpp'
+    - '**/*.c'
+    - '**/*.h'
+    - '**/*.hpp'
+    
+    # Configuration files
+    - '**/*.yml'
+    - '**/*.yaml'
+    - '**/*.json'
+    - '**/*.xml'
+    - '**/*.toml'
+    - '**/*.ini'
+    - '**/*.cfg'
+    - '**/*.conf'
+    
+    # Documentation
+    - '**/*.md'
+    - '**/*.rst'
+    - '**/*.txt'
+    
+    # Infrastructure
+    - '**/Dockerfile*'
+    - '**/*.dockerfile'
+    - '**/*.sh'
+    - '**/*.ps1'
+    - '**/*.bat'
+    - '**/*.sql'
+    - '**/*.graphql'
+    - '**/*.proto'
+  
+  exclude_patterns:
+    # Build artifacts
+    - '**/node_modules/**'
+    - '**/dist/**'
+    - '**/build/**'
+    - '**/target/**'
+    - '**/bin/**'
+    - '**/obj/**'
+    - '**/.gradle/**'
+    - '**/.mvn/**'
+    - '**/venv/**'
+    - '**/env/**'
+    - '**/.venv/**'
+    - '**/.env/**'
+    
+    # Generated files
+    - '**/*.min.js'
+    - '**/*.bundle.js'
+    - '**/*.chunk.js'
+    - '**/*.generated.*'
+    - '**/*.auto.*'
+    
+    # Version control
+    - '**/.git/**'
+    - '**/.svn/**'
+    - '**/.hg/**'
+    
+    # Dependencies
+    - '**/vendor/**'
+    - '**/packages/**'
+    - '**/libs/**'
+    
+    # IDE and editor files
+    - '**/.vscode/**'
+    - '**/.idea/**'
+    - '**/*.sublime-*'
+    - '**/.emacs.d/**'
+    
+    # OS files
+    - '**/.DS_Store'
+    - '**/Thumbs.db'
+    - '**/*.tmp'
+    - '**/*.temp'
+    - '**/*.log'
+    - '**/*.cache'
+    
+    # Security sensitive
+    - '**/*.key'
+    - '**/*.pem'
+    - '**/*.p12'
+    - '**/*.pfx'
+    - '**/*.crt'
+    - '**/*.cer'
+    - '**/*.der'
+    - '**/*.p7b'
+    - '**/*.p7c'
+    - '**/*.p8'
+    - '**/*.p12'
+    - '**/*.pfx'
+    - '**/*.jks'
+    - '**/*.keystore'
+    - '**/*.truststore'
+    - '**/*.bks'
+    - '**/*.pem'
+    - '**/*.crt'
+    - '**/*.cer'
+    - '**/*.der'
+    - '**/*.p7b'
+    - '**/*.p7c'
+    - '**/*.p8'
+    - '**/*.p12'
+    - '**/*.pfx'
+    - '**/*.jks'
+    - '**/*.keystore'
+    - '**/*.truststore'
+    - '**/*.bks'
+  
+  # Production file limits
+  max_file_size_mb: 2
+  max_files_per_review: 200
+  max_total_size_mb: 50
+  
+  # File prioritization
+  priority_patterns:
+    high:
+      - '**/src/**'
+      - '**/app/**'
+      - '**/lib/**'
+      - '**/core/**'
+      - '**/main/**'
+    medium:
+      - '**/tests/**'
+      - '**/spec/**'
+      - '**/test/**'
+      - '**/docs/**'
+    low:
+      - '**/examples/**'
+      - '**/samples/**'
+      - '**/demos/**'
+
+# Review settings - production quality gates
+review:
+  quality_gates:
+    min_score: 0.8
+    max_issues: 15
+    max_critical_issues: 2
+    max_high_issues: 5
+    block_on_critical: true
+    block_on_security: true
+    require_manual_review: false
+    
+    # Production-specific gates
+    security_score_threshold: 0.9
+    performance_score_threshold: 0.8
+    maintainability_score_threshold: 0.8
+    test_coverage_threshold: 0.7
+  
+  auto_fix:
+    enabled: true
+    max_changes: 10
+    require_approval: true
+    max_file_changes: 3
+    
+    # Production auto-fix settings
+    allowed_fix_types:
+      - 'formatting'
+      - 'naming'
+      - 'imports'
+      - 'unused_variables'
+      - 'simple_logical'
+    
+    blocked_fix_types:
+      - 'security'
+      - 'performance'
+      - 'architecture'
+      - 'business_logic'
+      - 'api_changes'
+  
+  # Production review settings
+  parallel_reviews: true
+  max_parallel_reviews: 5
+  review_timeout_minutes: 30
+  retry_failed_reviews: true
+
+# Email notifications - production setup
+notifications:
+  email:
+    enabled: true
+    
+    # Production SMTP Configuration
+    smtp_host: ${SMTP_HOST}
+    smtp_port: ${SMTP_PORT:-587}
+    smtp_secure: ${SMTP_SECURE:-true}
+    smtp_user: ${SMTP_USER}
+    smtp_pass: ${SMTP_PASS}
+    smtp_timeout: 30000
+    
+    # Production email addresses
+    from_email: ${EMAIL_FROM:-ai-review@company.com}
+    reply_to: ${EMAIL_REPLY_TO:-ai-review-support@company.com}
+    to_emails: ${EMAIL_TO}
+    cc_emails: ${EMAIL_CC:-[]}
+    bcc_emails: ${EMAIL_BCC:-[]}
+    
+    # Production notification triggers
+    triggers:
+      service_downtime: true
+      review_failure: true
+      quality_gate_failure: true
+      security_issues: true
+      performance_issues: true
+      critical_issues: true
+      review_timeout: true
+      api_rate_limit: true
+      cost_threshold: true
+    
+    # Production email templates
+    templates:
+      subjects:
+        review_failure: "[CRITICAL] AI Review Failed - ${repository}:${branch}"
+        quality_gate: "[BLOCKED] Quality Gate Failed - ${repository}:${branch}"
+        security: "[SECURITY] Critical Issue - ${repository}:${branch}"
+        performance: "[PERFORMANCE] Issue Detected - ${repository}:${branch}"
+        timeout: "[TIMEOUT] Review Timeout - ${repository}:${branch}"
+        cost: "[COST] Review Cost Alert - ${repository}:${branch}"
+      
+      bodies:
+        review_failure: |
+          <h2>🚨 CRITICAL: AI Code Review Failed</h2>
+          <div style="background-color: #fee; border: 2px solid #f00; padding: 15px; border-radius: 5px;">
+            <p><strong>Repository:</strong> ${repository}</p>
+            <p><strong>Branch:</strong> ${branch}</p>
+            <p><strong>Commit:</strong> ${commit}</p>
+            <p><strong>Author:</strong> ${author}</p>
+            <p><strong>Review Score:</strong> <span style="color: #f00;">${review_score}</span></p>
+            <p><strong>Issues Found:</strong> ${issues_count}</p>
+            <p><strong>Critical Issues:</strong> ${critical_count}</p>
+            <p><strong>High Issues:</strong> ${high_count}</p>
+            
+            <h3>🚨 IMMEDIATE ACTION REQUIRED</h3>
+            <p>This review has failed quality gates and requires immediate attention.</p>
+            <p><strong>Next Steps:</strong></p>
+            <ul>
+              <li>Review all identified issues</li>
+              <li>Fix critical and high priority issues</li>
+              <li>Re-run the review process</li>
+              <li>Contact the development team</li>
+            </ul>
+          </div>
+        
+        security: |
+          <h2>🔒 SECURITY ALERT: Critical Security Issue Detected</h2>
+          <div style="background-color: #fff3cd; border: 2px solid #ffc107; padding: 15px; border-radius: 5px;">
+            <p><strong>Repository:</strong> ${repository}</p>
+            <p><strong>Branch:</strong> ${branch}</p>
+            <p><strong>File:</strong> ${file_path}</p>
+            <p><strong>Issue Type:</strong> <span style="color: #dc3545;">${issue_type}</span></p>
+            <p><strong>Severity:</strong> <span style="color: #dc3545;">${severity}</span></p>
+            <p><strong>Description:</strong> ${description}</p>
+            
+            <h3>🔒 SECURITY IMPACT</h3>
+            <p>This issue has been identified as a potential security vulnerability.</p>
+            <p><strong>Immediate Actions:</strong></p>
+            <ul>
+              <li>Review the identified security issue</li>
+              <li>Assess the potential impact</li>
+              <li>Implement security fixes</li>
+              <li>Consider security team review</li>
+            </ul>
+          </div>
+    
+    # Production rate limiting
+    rate_limiting:
+      max_per_hour: 50
+      max_per_day: 200
+      cooldown_minutes: 15
+      burst_limit: 10
+    
+    # Production email formatting
+    formatting:
+      html_enabled: true
+      css_inline: true
+      responsive_design: true
+      dark_mode_support: false
+      accessibility: true
+    
+    # Production email security
+    security:
+      dkim_enabled: true
+      spf_enabled: true
+      dmarc_enabled: true
+      encryption_required: true
+      attachment_scanning: true
+    
+    # Production email logging
+    logging:
+      log_all_emails: true
+      log_email_content: false
+      log_recipients: true
+      log_delivery_status: true
+      retention_days: 90
+
+# Issue creation - production setup
+issue_creation:
+  enabled: true
+  
+  # Production triggers
+  triggers:
+    review_failure: true
+    review_passed: false
+    severity_threshold: 'medium'
+    quality_gate_failure: true
+    security_issues: true
+    performance_issues: true
+    cost_threshold: true
+  
+  # Production issue creation behavior
+  behavior:
+    strategy: 'smart_grouping'
+    max_issues_per_review: 50
+    min_severity: 'medium'
+    group_similar: true
+    deduplicate: true
+    auto_assign: true
+    auto_label: true
+    auto_milestone: true
+    
+    # Production grouping settings
+    grouping:
+      enabled: true
+      max_group_size: 10
+      group_by_type: true
+      group_by_severity: true
+      group_by_file: true
+      group_by_author: true
+    
+    # Production deduplication
+    deduplication:
+      enabled: true
+      similarity_threshold: 0.8
+      check_across_repos: true
+      check_across_branches: true
+      max_history_days: 90
+
+# GitHub integration - production setup
+github:
+  # Production issue creation
+  create_issues: true
+  update_issues: true
+  add_comments: true
+  add_labels: true
+  add_milestones: true
+  add_assignees: true
+  
+  # Production repository settings
+  repository: ${GITHUB_REPOSITORY}
+  token: ${GITHUB_TOKEN}
+  api_version: '2022-11-28'
+  
+  # Production GitHub settings
+  rate_limit_handling: true
+  retry_on_failure: true
+  max_retries: 3
+  retry_delay_seconds: 10
+  
+  # Production issue templates
+  issue_templates:
+    enabled: true
+    template_path: './.github/ISSUE_TEMPLATE/'
+    default_template: 'ai-review-issue.md'
+    
+    # Template variables
+    variables:
+      repository: ${GITHUB_REPOSITORY}
+      branch: ${GITHUB_REF_NAME}
+      commit: ${GITHUB_SHA}
+      author: ${GITHUB_ACTOR}
+      workflow: ${GITHUB_WORKFLOW}
+      run_id: ${GITHUB_RUN_ID}
+      run_number: ${GITHUB_RUN_NUMBER}
+  
+  # Production issue management
+  issue_management:
+    auto_close: true
+    auto_close_days: 30
+    auto_close_conditions:
+      - 'fixed_in_code'
+      - 'resolved_in_comments'
+      - 'no_activity_days: 14'
+    
+    # Issue lifecycle
+    lifecycle:
+      stages:
+        - 'new'
+        - 'investigating'
+        - 'in_progress'
+        - 'review'
+        - 'testing'
+        - 'resolved'
+        - 'closed'
+      
+      auto_transitions:
+        new_to_investigating: 'assigned'
+        investigating_to_in_progress: 'labeled:bug'
+        in_progress_to_review: 'labeled:ready-for-review'
+        review_to_testing: 'labeled:approved'
+        testing_to_resolved: 'labeled:tested'
+        resolved_to_closed: 'no_activity:7'
+
+# Logging - production setup
+logging:
+  level: 'warn'
+  
+  # Production file logging
+  file_logging:
+    enabled: true
+    file_path: './logs/ai-review.log'
+    max_size: '100MB'
+    max_files: 10
+    compress_old: true
+    retention_days: 90
+  
+  # Production structured logging
+  structured: true
+  json_format: true
+  
+  # Production logging settings
+  log_creation: true
+  log_errors: true
+  log_warnings: true
+  log_info: false
+  log_debug: false
+  
+  # Production log rotation
+  rotation:
+    enabled: true
+    max_size: '100MB'
+    max_files: 10
+    compress: true
+    retention_days: 90
+  
+  # Production log aggregation
+  aggregation:
+    enabled: true
+    batch_size: 100
+    flush_interval_seconds: 30
+    max_queue_size: 1000
+  
+  # Production log monitoring
+  monitoring:
+    enabled: true
+    metrics:
+      - 'error_rate'
+      - 'response_time'
+      - 'throughput'
+      - 'success_rate'
+    alerts:
+      error_rate_threshold: 0.05
+      response_time_threshold: 30
+      throughput_threshold: 100
+
+# Performance - production settings
+performance:
+  # Production rate limiting
+  rate_limiting:
+    enabled: true
+    max_requests_per_minute: 50
+    max_requests_per_hour: 1000
+    cooldown_minutes: 10
+    burst_limit: 20
+  
+  # Production caching
+  caching:
+    enabled: true
+    cache_duration_minutes: 60
+    max_cache_size: 1000
+    cache_cleanup_interval_minutes: 30
+    
+    # Cache strategies
+    strategies:
+      file_metadata: 120
+      review_results: 60
+      ai_responses: 30
+      user_preferences: 1440
+  
+  # Production optimization
+  optimization:
+    parallel_processing: true
+    max_workers: 10
+    worker_timeout_seconds: 300
+    memory_limit_mb: 2048
+    
+    # Performance monitoring
+    monitoring:
+      enabled: true
+      metrics:
+        - 'response_time'
+        - 'memory_usage'
+        - 'cpu_usage'
+        - 'throughput'
+        - 'error_rate'
+      thresholds:
+        response_time_ms: 5000
+        memory_usage_mb: 1536
+        cpu_usage_percent: 80
+        error_rate_percent: 5
+
+# Security - production settings
+security:
+  # Production authentication
+  authentication:
+    enabled: true
+    method: 'token'
+    token_expiry_hours: 24
+    refresh_token_enabled: true
+    
+    # Rate limiting for auth
+    auth_rate_limit:
+      max_attempts_per_hour: 10
+      lockout_duration_minutes: 30
+  
+  # Production authorization
+  authorization:
+    enabled: true
+    role_based: true
+    default_role: 'reviewer'
+    
+    # Role permissions
+    roles:
+      admin:
+        - 'all'
+      reviewer:
+        - 'read'
+        - 'review'
+        - 'comment'
+      developer:
+        - 'read'
+        - 'comment'
+      viewer:
+        - 'read'
+  
+  # Production data protection
+  data_protection:
+    encryption_at_rest: true
+    encryption_in_transit: true
+    data_retention_days: 90
+    data_anonymization: true
+    
+    # PII handling
+    pii_detection: true
+    pii_redaction: true
+    pii_logging: false
+  
+  # Production audit logging
+  audit:
+    enabled: true
+    log_all_actions: true
+    log_user_actions: true
+    log_system_actions: true
+    retention_days: 365
+
+# Monitoring and alerting - production setup
+monitoring:
+  # Production health checks
+  health_checks:
+    enabled: true
+    interval_seconds: 30
+    timeout_seconds: 10
+    
+    # Health check endpoints
+    endpoints:
+      - '/health'
+      - '/ready'
+      - '/live'
+    
+    # Health check criteria
+    criteria:
+      database: true
+      external_apis: true
+      file_system: true
+      memory_usage: true
+      cpu_usage: true
+  
+  # Production metrics
+  metrics:
+    enabled: true
+    collection_interval_seconds: 60
+    
+    # Metric types
+    types:
+      - 'counter'
+      - 'gauge'
+      - 'histogram'
+      - 'summary'
+    
+    # Key metrics
+    key_metrics:
+      - 'review_requests_total'
+      - 'review_duration_seconds'
+      - 'review_success_rate'
+      - 'ai_response_time_seconds'
+      - 'issues_created_total'
+      - 'email_sent_total'
+      - 'error_rate'
+      - 'memory_usage_bytes'
+      - 'cpu_usage_percent'
+  
+  # Production alerting
+  alerting:
+    enabled: true
+    
+    # Alert channels
+    channels:
+      email: true
+      slack: ${SLACK_WEBHOOK_URL}
+      pagerduty: ${PAGERDUTY_API_KEY}
+      teams: ${TEAMS_WEBHOOK_URL}
+    
+    # Alert rules
+    rules:
+      high_error_rate:
+        condition: 'error_rate > 0.1'
+        severity: 'critical'
+        cooldown_minutes: 15
+        
+      high_response_time:
+        condition: 'response_time > 30'
+        severity: 'warning'
+        cooldown_minutes: 5
+        
+      service_down:
+        condition: 'health_check_failed'
+        severity: 'critical'
+        cooldown_minutes: 1
+        
+      memory_high:
+        condition: 'memory_usage > 80'
+        severity: 'warning'
+        cooldown_minutes: 10
+
+# Environment-specific overrides - production
+environments:
+  development:
+    log_level: 'debug'
+    debug_mode: true
+    notifications:
+      email:
+        enabled: false
+    issue_creation:
+      enabled: false
+    performance:
+      rate_limiting:
+        max_requests_per_minute: 10
+    monitoring:
+      health_checks:
+        interval_seconds: 10
+  
+  staging:
+    log_level: 'info'
+    debug_mode: false
+    notifications:
+      email:
+        enabled: true
+        to_emails: ${STAGING_EMAIL_TO}
+    issue_creation:
+      enabled: true
+      behavior:
+        strategy: 'per_file'
+        group_similar: false
+    performance:
+      rate_limiting:
+        max_requests_per_minute: 25
+    monitoring:
+      health_checks:
+        interval_seconds: 60
+  
+  production:
+    log_level: 'warn'
+    debug_mode: false
+    notifications:
+      email:
+        enabled: true
+        to_emails: ${PRODUCTION_EMAIL_TO}
+    issue_creation:
+      enabled: true
+      behavior:
+        strategy: 'smart_grouping'
+        group_similar: true
+    performance:
+      rate_limiting:
+        max_requests_per_minute: 50
+    monitoring:
+      health_checks:
+        interval_seconds: 30
+
+# Validation rules - production
+validation:
+  required_fields:
+    - environment
+    - ai.model
+    - notifications.email.smtp_host
+    - notifications.email.smtp_user
+    - notifications.email.smtp_pass
+    - github.token
+    - github.repository
+  
+  # Production validation rules
+  max_values:
+    max_files_per_review: 500
+    max_file_size_mb: 10
+    max_total_size_mb: 100
+    max_parallel_reviews: 20
+    max_workers: 20
+  
+  min_values:
+    max_files_per_review: 1
+    max_file_size_mb: 0.1
+    max_total_size_mb: 1
+    max_parallel_reviews: 1
+    max_workers: 1
+  
+  # Production format validation
+  format_validation:
+    email_format: true
+    url_format: true
+    file_path_format: true
+    severity_levels: true
+  
+  # Production security validation
+  security_validation:
+    check_secrets: true
+    check_credentials: true
+    validate_permissions: true
+    check_rate_limits: true
+
+# Configuration metadata - production
+metadata:
+  example_name: 'Production-Ready Configuration'
+  use_case: 'Enterprise production environment with full features'
+  target_audience: 'Large teams, critical projects, production deployments'
+  complexity: 'Advanced'
+  estimated_setup_time: '30-60 minutes'
+  version: '1.0.0'
+  last_updated: '2024-12-19'
+  author: 'AI Code Review System'
+  description: 'Comprehensive production configuration with enterprise features'
+  
+  # Required environment variables
+  required_env_vars:
+    - 'EMAIL_TO - Email addresses to send notifications to'
+    - 'SMTP_HOST - SMTP server hostname'
+    - 'SMTP_USER - SMTP username'
+    - 'SMTP_PASS - SMTP password'
+    - 'GITHUB_TOKEN - GitHub API token'
+    - 'OPENAI_API_KEY - OpenAI API key'
+    - 'GITHUB_REPOSITORY - GitHub repository (owner/repo)'
+  
+  # Optional environment variables
+  optional_env_vars:
+    - 'EMAIL_FROM - From email address (defaults to ai-review@company.com)'
+    - 'EMAIL_REPLY_TO - Reply-to email address'
+    - 'EMAIL_CC - CC email addresses'
+    - 'EMAIL_BCC - BCC email addresses'
+    - 'SMTP_PORT - SMTP port (defaults to 587)'
+    - 'SMTP_SECURE - Use TLS (defaults to true)'
+    - 'SLACK_WEBHOOK_URL - Slack webhook for alerts'
+    - 'PAGERDUTY_API_KEY - PagerDuty API key for alerts'
+    - 'TEAMS_WEBHOOK_URL - Teams webhook for alerts'
+    - 'STAGING_EMAIL_TO - Staging environment email recipients'
+    - 'PRODUCTION_EMAIL_TO - Production environment email recipients'
+  
+  # Production setup commands
+  production_setup:
+    - 'Copy this file to ai-review-config.yml'
+    - 'Set all required environment variables'
+    - 'Configure SMTP settings for your email provider'
+    - 'Set up GitHub repository and token'
+    - 'Configure monitoring and alerting endpoints'
+    - 'Set up logging and log rotation'
+    - 'Configure security settings and roles'
+    - 'Test all integrations'
+    - 'Run: npm run validate-config'
+    - 'Run: npm run test-all'
+    - 'Run: npm run start'
+  
+  # Production checklist
+  production_checklist:
+    - '✅ Environment variables configured'
+    - '✅ SMTP settings tested'
+    - '✅ GitHub integration verified'
+    - '✅ Monitoring endpoints configured'
+    - '✅ Logging and rotation set up'
+    - '✅ Security settings configured'
+    - '✅ Rate limiting tested'
+    - '✅ Health checks working'
+    - '✅ Alerts configured and tested'
+    - '✅ Performance benchmarks established'
+    - '✅ Backup and recovery procedures documented'
+    - '✅ Incident response plan ready'
+  
+  # Production maintenance
+  maintenance:
+    daily:
+      - 'Check health status'
+      - 'Review error logs'
+      - 'Monitor performance metrics'
+    
+    weekly:
+      - 'Review and rotate logs'
+      - 'Check rate limit usage'
+      - 'Review security logs'
+      - 'Update dependencies'
+    
+    monthly:
+      - 'Performance review'
+      - 'Security audit'
+      - 'Configuration review'
+      - 'Backup verification'
+    
+    quarterly:
+      - 'Full security review'
+      - 'Performance optimization'
+      - 'Configuration optimization'
+      - 'Disaster recovery test'
+  
+  # Production troubleshooting
+  troubleshooting:
+    common_issues:
+      - 'High error rates: Check API limits and external services'
+      - 'Slow response times: Review performance settings and caching'
+      - 'Email delivery issues: Verify SMTP configuration and rate limits'
+      - 'GitHub API errors: Check token permissions and rate limits'
+      - 'Memory issues: Adjust worker limits and cache settings'
+    
+    escalation:
+      - 'Level 1: Check logs and restart service'
+      - 'Level 2: Review configuration and dependencies'
+      - 'Level 3: Contact development team'
+      - 'Level 4: Engage security team for security issues'
+

@@ -1,0 +1,182 @@
+# 📧 AI Code Review Email Configuration
+# This file configures email notifications for the AI Code Review system
+# Copy this file to your project root and customize as needed
+
+# Email notification settings
+notifications:
+  email:
+    # Enable/disable email notifications
+    enabled: true
+    
+    # SMTP Configuration
+    smtp_host: ${SMTP_HOST:-smtp.gmail.com}
+    smtp_port: ${SMTP_PORT:-587}
+    smtp_secure: ${SMTP_SECURE:-false}
+    smtp_user: ${SMTP_USER}
+    smtp_pass: ${SMTP_PASS}
+    
+    # Email addresses
+    from_email: ${EMAIL_FROM:-ai-review@github.com}
+    to_emails: ${EMAIL_TO:-[]}
+    
+    # Notification triggers
+    triggers:
+      # Send email when AI service is down
+      service_downtime: true
+      
+      # Send email when review fails
+      review_failure: true
+      
+      # Send email when quality gates fail
+      quality_gate_failure: true
+      
+      # Send email for security issues
+      security_issues: true
+      
+      # Send email for performance issues
+      performance_issues: true
+    
+    # Email templates
+    templates:
+      # Custom subject line templates
+      subjects:
+        service_downtime: "[AI Review] Service Downtime - ${repository}"
+        review_failure: "[AI Review] Review Failed - ${repository}"
+        quality_gate: "[AI Review] Quality Gate Failed - ${repository}"
+        security: "[AI Review] Security Issue Detected - ${repository}"
+        performance: "[AI Review] Performance Issue - ${repository}"
+      
+      # Custom email body templates (optional)
+      bodies:
+        service_downtime: |
+          <h2>🚨 AI Code Review Service Downtime</h2>
+          <p>The AI Code Review service is currently unavailable.</p>
+          <p><strong>Repository:</strong> ${repository}</p>
+          <p><strong>Time:</strong> ${timestamp}</p>
+          <p><strong>Error:</strong> ${error}</p>
+        
+        review_failure: |
+          <h2>❌ AI Code Review Failed</h2>
+          <p>A code review has failed for the following changes:</p>
+          <p><strong>Repository:</strong> ${repository}</p>
+          <p><strong>Branch:</strong> ${branch}</p>
+          <p><strong>Commit:</strong> ${commit}</p>
+          <p><strong>Issues Found:</strong> ${issues_count}</p>
+    
+    # Rate limiting
+    rate_limiting:
+      # Maximum emails per hour
+      max_per_hour: 10
+      
+      # Maximum emails per day
+      max_per_day: 50
+      
+      # Cooldown period between similar notifications (minutes)
+      cooldown_minutes: 30
+    
+    # Email formatting
+    formatting:
+      # Include HTML formatting
+      html: true
+      
+      # Include plain text version
+      plain_text: true
+      
+      # Include repository information in headers
+      include_repo_info: true
+      
+      # Include error details
+      include_error_details: true
+      
+      # Include retry information
+      include_retry_info: true
+    
+    # Security settings
+    security:
+      # Require TLS encryption
+      require_tls: true
+      
+      # Validate sender domain
+      validate_sender: true
+      
+      # Rate limit by sender
+      rate_limit_by_sender: true
+    
+    # Logging and debugging
+    logging:
+      # Log all email attempts
+      log_attempts: true
+      
+      # Log email content (be careful with sensitive data)
+      log_content: false
+      
+      # Log delivery status
+      log_delivery: true
+      
+      # Log configuration validation
+      log_validation: true
+
+# Environment-specific overrides
+environments:
+  development:
+    notifications:
+      email:
+        enabled: false  # Disable in development
+        to_emails: ["dev@localhost"]
+  
+  staging:
+    notifications:
+      email:
+        to_emails: ["qa@company.com", "staging@company.com"]
+  
+  production:
+    notifications:
+      email:
+        to_emails: ["dev@company.com", "qa@company.com", "ops@company.com"]
+        rate_limiting:
+          max_per_hour: 20
+          max_per_day: 100
+
+# Example configurations for common email providers
+examples:
+  gmail:
+    smtp_host: smtp.gmail.com
+    smtp_port: 587
+    smtp_secure: false
+    note: "Use App Password, not regular password"
+  
+  outlook:
+    smtp_host: smtp-mail.outlook.com
+    smtp_port: 587
+    smtp_secure: false
+  
+  sendgrid:
+    smtp_host: smtp.sendgrid.net
+    smtp_port: 587
+    smtp_secure: false
+  
+  aws_ses:
+    smtp_host: email-smtp.us-east-1.amazonaws.com
+    smtp_port: 587
+    smtp_secure: false
+
+# Configuration validation rules
+validation:
+  required_fields:
+    - smtp_host
+    - smtp_user
+    - smtp_pass
+    - to_emails
+  
+  email_format: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+  
+  port_range:
+    min: 1
+    max: 65535
+  
+  rate_limit_range:
+    min_per_hour: 1
+    max_per_hour: 1000
+    min_per_day: 1
+    max_per_day: 10000
+

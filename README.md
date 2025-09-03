@@ -262,6 +262,60 @@ Current test coverage: **69.55%** (target: 80%)
 - ✅ Performance tests for scalability
 - ⚠️ Some tests need mocking improvements
 
+## 🔧 Configuration Management
+
+The system includes comprehensive configuration management tools:
+
+### Configuration Migration
+```bash
+# Check if migration is needed
+npm run config:migrate check config/email-config.yml
+
+# Migrate to latest version
+npm run config:migrate migrate config/email-config.yml
+```
+
+### Configuration Backup & Restore
+```bash
+# Create backup
+npm run config:backup backup config/*.yml
+
+# List backups
+npm run config:backup list
+
+# Restore from backup
+npm run config:backup restore <backup-id>
+```
+
+For detailed information, see [Configuration Tools Documentation](docs/CONFIGURATION_TOOLS.md).
+
+## 🧪 Code Quality System
+
+The AI Review System includes a comprehensive code quality system with automated checks and quality gates:
+
+### Quick Start
+
+```bash
+# Run all quality checks
+npm run quality:all
+
+# Run quality gates
+npm run quality:gates
+
+# Run specific checks
+npm run quality:lint
+npm run quality:format
+npm run quality:security
+```
+
+### Quality Gates
+
+- **Pre-Commit**: Basic quality checks for local development
+- **Pre-Push**: Comprehensive checks before sharing code
+- **CI/CD**: Full quality assurance for production
+
+For detailed code quality documentation, see [CODE_QUALITY_SYSTEM.md](docs/CODE_QUALITY_SYSTEM.md).
+
 ## 🚀 Deployment
 
 ### Option 1: Deploy to Your Repository

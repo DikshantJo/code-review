@@ -2,7 +2,7 @@ const EmailNotifier = require('./email-notifier');
 
 // Mock nodemailer
 jest.mock('nodemailer', () => ({
-  createTransporter: jest.fn()
+  createTransport: jest.fn()
 }));
 
 const nodemailer = require('nodemailer');
@@ -21,7 +21,7 @@ describe('EmailNotifier', () => {
       sendMail: jest.fn()
     };
     
-    nodemailer.createTransporter.mockReturnValue(mockTransporter);
+    nodemailer.createTransport.mockReturnValue(mockTransporter);
     
     // Default config
     config = {
@@ -47,7 +47,7 @@ describe('EmailNotifier', () => {
       
       expect(emailNotifier.isEnabled).toBe(true);
       expect(emailNotifier.transporter).toBe(mockTransporter);
-      expect(nodemailer.createTransporter).toHaveBeenCalledWith({
+      expect(nodemailer.createTransport).toHaveBeenCalledWith({
         host: 'smtp.example.com',
         port: 587,
         secure: false,
@@ -64,7 +64,7 @@ describe('EmailNotifier', () => {
       
       expect(emailNotifier.isEnabled).toBe(false);
       expect(emailNotifier.transporter).toBeNull();
-      expect(nodemailer.createTransporter).not.toHaveBeenCalled();
+      expect(nodemailer.createTransport).not.toHaveBeenCalled();
     });
 
     test('should throw error when SMTP config is incomplete', () => {
@@ -81,7 +81,7 @@ describe('EmailNotifier', () => {
       
       emailNotifier = new EmailNotifier(config);
       
-      expect(nodemailer.createTransporter).toHaveBeenCalledWith({
+      expect(nodemailer.createTransport).toHaveBeenCalledWith({
         host: 'smtp.example.com',
         port: 587,
         secure: false,
@@ -333,6 +333,109 @@ describe('EmailNotifier', () => {
       expect(result.sent).toBe(false);
       expect(result.error).toBe('Network error');
       expect(result.type).toBe('test');
+    });
+
+    test('should handle missing email recipients gracefully without hardcoded fallbacks', async () => {
+      // Test with empty to_emails array
+      const configWithoutRecipients = {
+        ...config,
+        notifications: {
+          ...config.notifications,
+          email: {
+            ...config.notifications.email,
+            to_emails: []
+          }
+        }
+      };
+      
+      const emailNotifierWithoutRecipients = new EmailNotifier(configWithoutRecipients);
+      
+      const result = await emailNotifierWithoutRecipients.sendEmail('Test Subject', '<p>Test body</p>', 'test');
+      
+      expect(result.sent).toBe(false);
+      expect(result.error).toContain('No email recipients configured');
+      expect(result.reason).toBe('missing_recipients');
+      expect(result.type).toBe('test');
+    });
+
+    test('should handle missing email configuration without hardcoded fallbacks', async () => {
+      // Test with no email configuration at all
+      const configWithoutEmail = {
+        repository: 'test-repo'
+      };
+      
+      const emailNotifierWithoutEmail = new EmailNotifier(configWithoutEmail);
+      
+      const result = await emailNotifierWithoutEmail.sendEmail('Test Subject', '<p>Test body</p>', 'test');
+      
+      expect(result.sent).toBe(false);
+      expect(result.error).toContain('Email transporter not initialized');
+      expect(result.type).toBe('test');
+    });
+
+    test('should handle undefined to_emails without hardcoded fallbacks', async () => {
+      // Test with undefined to_emails
+      const configWithUndefinedRecipients = {
+        ...config,
+        notifications: {
+          ...config.notifications,
+          email: {
+            ...config.notifications.email,
+            to_emails: undefined
+          }
+        }
+      };
+      
+      const emailNotifierWithUndefinedRecipients = new EmailNotifier(configWithUndefinedRecipients);
+      
+      const result = await emailNotifierWithUndefinedRecipients.sendEmail('Test Subject', '<p>Test body</p>', 'test');
+      
+      expect(result.sent).toBe(false);
+      expect(result.error).toContain('No email recipients configured');
+      expect(result.reason).toBe('missing_recipients');
+      expect(result.type).toBe('test');
+    });
+
+    test('should use environment variable EMAIL_TO when available', async () => {
+      // Mock environment variable
+      const originalEnv = process.env.EMAIL_TO;
+      process.env.EMAIL_TO = 'env1@example.com,env2@example.com';
+      
+      try {
+        const configWithEnv = {
+          ...config,
+          notifications: {
+            ...config.notifications,
+            email: {
+              ...config.notifications.email,
+              to_emails: undefined // Remove config to force env fallback
+            }
+          }
+        };
+        
+        const emailNotifierWithEnv = new EmailNotifier(configWithEnv);
+        
+        mockTransporter.sendMail.mockResolvedValue({
+          messageId: 'test-message-id'
+        });
+
+        const result = await emailNotifierWithEnv.sendEmail('Test Subject', '<p>Test body</p>', 'test');
+        
+        expect(result.sent).toBe(true);
+        expect(mockTransporter.sendMail).toHaveBeenCalledWith({
+          from: 'ai-review@github.com',
+          to: 'env1@example.com, env2@example.com',
+          subject: 'Test Subject',
+          html: '<p>Test body</p>',
+          headers: {
+            'X-Email-Type': 'test',
+            'X-Repository': 'test-repo'
+          }
+        });
+      } finally {
+        // Restore original environment
+        process.env.EMAIL_TO = originalEnv;
+      }
     });
   });
 
