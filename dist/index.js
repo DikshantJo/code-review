@@ -52687,6 +52687,9 @@ class FallbackHandler {
    * @returns {Object} Simplified prompt
    */
   createSimplifiedPrompt(originalPrompt, context = {}) {
+    // Ensure originalPrompt is an object and has safe defaults
+    const safePrompt = originalPrompt || {};
+    
     const simplified = {
       system: `You are a code reviewer. Review the provided code for issues and respond with a simple JSON format:
 {
@@ -52706,7 +52709,7 @@ class FallbackHandler {
 }`,
       user: `Review this code for critical issues only. Focus on security and major problems. Keep response concise.
 
-${originalPrompt.user || 'Code to review:'}`
+${safePrompt.user || 'Code to review:'}`
     };
 
     return simplified;
@@ -52719,6 +52722,9 @@ ${originalPrompt.user || 'Code to review:'}`
    * @returns {Object} Manual review fallback
    */
   createManualReviewFallback(error, context = {}) {
+    // Ensure context is an object and has safe defaults
+    const safeContext = context || {};
+    
     const fallback = {
       issues: [
         {
@@ -52742,12 +52748,12 @@ ${originalPrompt.user || 'Code to review:'}`
         fallbackReason: this.classifyError(error),
         timestamp: new Date().toISOString(),
         context: {
-          repository: context.repository,
-          branch: context.targetBranch,
-          commit: context.commitSha,
-          author: context.author
+          repository: safeContext.repository || 'unknown',
+          branch: safeContext.targetBranch || 'unknown',
+          commit: safeContext.commitSha || 'unknown',
+          author: safeContext.author || 'unknown'
         },
-        instructions: this.getManualReviewInstructions(context)
+        instructions: this.getManualReviewInstructions(safeContext)
       }
     };
 
@@ -52788,10 +52794,14 @@ ${originalPrompt.user || 'Code to review:'}`
    * @returns {Object} Degraded review response
    */
   createDegradedReviewFallback(context = {}, files = []) {
+    // Ensure context and files are valid
+    const safeContext = context || {};
+    const safeFiles = files || [];
+    
     const issues = [];
     
     // Perform basic static analysis
-    for (const file of files) {
+    for (const file of safeFiles) {
       const fileIssues = this.performBasicAnalysis(file);
       issues.push(...fileIssues);
     }
@@ -52810,9 +52820,9 @@ ${originalPrompt.user || 'Code to review:'}`
         fallbackReason: 'ai_service_unavailable',
         timestamp: new Date().toISOString(),
         context: {
-          repository: context.repository,
-          branch: context.targetBranch,
-          commit: context.commitSha
+          repository: safeContext.repository || 'unknown',
+          branch: safeContext.targetBranch || 'unknown',
+          commit: safeContext.commitSha || 'unknown'
         },
         note: 'This review was performed using basic static analysis due to AI service unavailability.'
       }
@@ -52827,6 +52837,17 @@ ${originalPrompt.user || 'Code to review:'}`
    * @returns {Array} Array of basic issues found
    */
   performBasicAnalysis(file) {
+    // Ensure file is a valid object
+    if (!file || typeof file !== 'object') {
+      return [{
+        severity: 'MEDIUM',
+        category: 'Standards',
+        description: 'Invalid file object provided for analysis',
+        file: 'unknown',
+        recommendation: 'Ensure valid file object is passed for analysis'
+      }];
+    }
+    
     const issues = [];
     const content = file.content || '';
     const path = file.path || 'unknown';
@@ -52886,6 +52907,9 @@ ${originalPrompt.user || 'Code to review:'}`
    * @returns {Object} Emergency bypass response
    */
   createEmergencyBypassFallback(context = {}, reason = 'emergency') {
+    // Ensure context is an object and has safe defaults
+    const safeContext = context || {};
+    
     const fallback = {
       issues: [],
       summary: {
@@ -52901,10 +52925,10 @@ ${originalPrompt.user || 'Code to review:'}`
         fallbackReason: 'emergency_bypass',
         timestamp: new Date().toISOString(),
         context: {
-          repository: context.repository,
-          branch: context.targetBranch,
-          commit: context.commitSha,
-          author: context.author
+          repository: safeContext.repository || 'unknown',
+          branch: safeContext.targetBranch || 'unknown',
+          commit: safeContext.commitSha || 'unknown',
+          author: safeContext.author || 'unknown'
         },
         warning: 'Code review was bypassed due to emergency. Manual review is strongly recommended.'
       }
@@ -52943,7 +52967,7 @@ ${originalPrompt.user || 'Code to review:'}`
       case 'simplified':
         return {
           type: 'simplified',
-          prompt: this.createSimplifiedPrompt(originalPrompt, context),
+          prompt: this.createSimplifiedPrompt(originalPrompt || {}, context),
           shouldRetry: true
         };
 
