@@ -32,7 +32,10 @@
     "quality:pre-commit": "node src/cli/code-quality-cli.js --gates preCommit",
     "quality:pre-push": "node src/cli/code-quality-cli.js --gates prePush",
     "config:migrate": "node src/cli/config-migration-cli.js",
-    "config:backup": "node src/cli/config-backup-cli.js"
+    "config:backup": "node src/cli/config-backup-cli.js",
+    "health": "node src/cli/system-health-cli.js",
+    "health:verbose": "node src/cli/system-health-cli.js --verbose",
+    "health:report": "node src/cli/system-health-cli.js --output health-report.json"
   },
   "keywords": [
     "github-action",

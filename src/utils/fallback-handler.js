@@ -55,6 +55,17 @@ class FallbackHandler {
   }
 
   /**
+   * Alias method for determineFallbackStrategy (compatibility)
+   * @param {Error} error - Error object
+   * @param {Object} context - Error context
+   * @param {number} attempt - Retry attempt number
+   * @returns {string} Fallback strategy
+   */
+  determineStrategy(error, context = {}, attempt = 1) {
+    return this.determineFallbackStrategy(error, context, attempt);
+  }
+
+  /**
    * Classify error type for fallback strategy selection
    * @param {Error} error - The error
    * @returns {string} Error type classification
@@ -318,6 +329,16 @@ ${originalPrompt.user || 'Code to review:'}`
     };
 
     return fallback;
+  }
+
+  /**
+   * Alias method for executeFallbackStrategy (compatibility)
+   * @param {string} strategy - Fallback strategy to execute
+   * @param {Object} params - Parameters for the strategy
+   * @returns {Object} Fallback result
+   */
+  async executeStrategy(strategy, params = {}) {
+    return await this.executeFallbackStrategy(strategy, params);
   }
 
   /**
