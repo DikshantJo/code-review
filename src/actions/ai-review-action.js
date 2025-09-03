@@ -139,7 +139,7 @@ class AIReviewAction {
         core.info('   ✅ ResponseHandler created');
         
         core.info('   Creating FallbackHandler...');
-        this.fallbackHandler = new FallbackHandler();
+        this.fallbackHandler = new FallbackHandler({}); // Pass empty config initially, will be updated in initialize()
         core.info('   ✅ FallbackHandler created');
         
         this.monitoringDashboard = null;
@@ -183,8 +183,13 @@ class AIReviewAction {
         this.qualityGates.setAuditLogger(this.auditLogger);
       }
       
+      // Update FallbackHandler config
+      if (this.fallbackHandler && this.fallbackHandler.updateConfig) {
+        this.fallbackHandler.updateConfig(this.config);
+      }
+      
       // Initialize monitoring dashboard
-      if (this.config.monitoring) {
+      if (this.config?.monitoring) {
         this.monitoringDashboard = new MonitoringDashboard(this.config);
         await this.monitoringDashboard.initialize();
         core.info('Monitoring dashboard initialized successfully');
@@ -811,7 +816,7 @@ class AIReviewAction {
         severityBreakdown: parsedResponse.severityBreakdown,
         aiResponseTime: aiResponseTime,
         tokensUsed: aiResponse.usage?.total_tokens || 0,
-        modelUsed: this.config.openai.model,
+        modelUsed: this.config?.openai?.model || 'unknown',
         qualityScore: qualityScore,
         targetBranch: branchInfo.targetBranch,
         environment: branchInfo.environment,
@@ -821,10 +826,10 @@ class AIReviewAction {
         reviewMetrics: reviewMetrics,
         
         // Enhanced metrics for tracking
-        modelVersion: aiResponse.model || this.config.openai.model,
+        modelVersion: aiResponse.model || (this.config?.openai?.model || 'unknown'),
         apiVersion: aiResponse.api_version || 'unknown',
-        temperature: this.config.openai.temperature || 0.1,
-        maxTokens: this.config.openai.max_tokens || 0,
+        temperature: this.config?.openai?.temperature || 0.1,
+        maxTokens: this.config?.openai?.max_tokens || 0,
         retryCount: aiResponse.retry_count || 0,
         fallbackUsed: false,
         errorType: null,
@@ -853,21 +858,21 @@ class AIReviewAction {
         error
       });
       
-      // Add error tracking metrics to fallback result
-      return {
-        ...fallbackResult,
-        aiResponseTime: errorTime,
-        tokensUsed: 0,
-        modelUsed: this.config.openai.model,
-        fallbackUsed: true,
-        errorType: error.name || 'UnknownError',
-        errorMessage: error.message,
-        retryCount: fallbackResult.retryCount || 0,
-        modelVersion: this.config.openai.model,
-        apiVersion: 'unknown',
-        temperature: this.config.openai.temperature || 0.1,
-        maxTokens: this.config.openai.max_tokens || 0
-      };
+              // Add error tracking metrics to fallback result
+        return {
+          ...fallbackResult,
+          aiResponseTime: errorTime,
+          tokensUsed: 0,
+          modelUsed: this.config?.openai?.model || 'unknown',
+          fallbackUsed: true,
+          errorType: error.name || 'UnknownError',
+          errorMessage: error.message,
+          retryCount: fallbackResult.retryCount || 0,
+          modelVersion: this.config?.openai?.model || 'unknown',
+          apiVersion: 'unknown',
+          temperature: this.config?.openai?.temperature || 0.1,
+          maxTokens: this.config?.openai?.max_tokens || 0
+        };
     }
   }
 

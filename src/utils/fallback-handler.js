@@ -449,6 +449,19 @@ ${safePrompt.user || 'Code to review:'}`
   isEnabled() {
     return this.enableFallbacks;
   }
+  
+  /**
+   * Update configuration after initialization
+   * @param {Object} config - New configuration object
+   */
+  updateConfig(config) {
+    if (config) {
+      this.config = config;
+      this.enableFallbacks = config?.fallbacks?.enabled !== false;
+      this.maxFallbackAttempts = config?.fallbacks?.max_attempts || 3;
+      this.fallbackStrategies = config?.fallbacks?.strategies || ['retry', 'simplified', 'manual'];
+    }
+  }
 }
 
 module.exports = FallbackHandler;
