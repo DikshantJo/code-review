@@ -53294,6 +53294,17 @@ class FileFilter {
   }
 
   /**
+   * Check if a file should be reviewed (inverse of shouldExcludeFile)
+   * @param {string} filePath - Path to the file
+   * @param {Object} options - Additional options
+   * @returns {boolean} True if file should be reviewed
+   */
+  shouldReviewFile(filePath, options = {}) {
+    const excludeResult = this.shouldExcludeFile(filePath, options);
+    return !excludeResult.shouldExclude;
+  }
+
+  /**
    * Get file statistics for a list of files
    * @param {Array<string>} files - Array of file paths
    * @returns {Object} File statistics
@@ -55625,6 +55636,75 @@ class AuditLogger {
       context: logEntry.context,
       complianceValid: this.complianceMode ? this.validateComplianceFields(logEntry).valid : true
     };
+  }
+
+  /**
+   * Log a review attempt with comprehensive context
+   * @param {Object} reviewData - Review data and results
+   * @param {Object} context - Review context information
+   * @returns {Promise<Object>} Log entry information
+   */
+  async logReviewAttempt(reviewData, context = {}) {
+    try {
+      const eventData = {
+        review_type: 'ai_code_review',
+        review_status: reviewData.status || 'completed',
+        review_duration: reviewData.duration || 0,
+        files_reviewed: reviewData.filesReviewed || 0,
+        issues_found: reviewData.issues?.length || 0,
+        severity_distribution: this.getSeverityDistribution(reviewData.issues || []),
+        review_score: reviewData.score || 0,
+        quality_gates_passed: reviewData.qualityGatesPassed || false,
+        ...reviewData
+      };
+
+      const logContext = {
+        ...context,
+        category: 'review_attempt',
+        session_id: context.sessionId || this.generateSessionId(),
+        user: context.user || 'ai_system',
+        repository: context.repository || 'unknown',
+        branch: context.branch || 'unknown',
+        commit_sha: context.commitSha || 'unknown',
+        pull_request: context.pullRequest || 'unknown'
+      };
+
+      return await this.logEvent('review_attempt', eventData, 'info', logContext);
+    } catch (error) {
+      console.error('Failed to log review attempt:', error);
+      return {
+        auditId: null,
+        logged: false,
+        reason: 'log_error',
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Get severity distribution from issues
+   * @param {Array} issues - Array of review issues
+   * @returns {Object} Severity distribution
+   */
+  getSeverityDistribution(issues) {
+    const distribution = {
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+      info: 0
+    };
+
+    for (const issue of issues) {
+      const severity = (issue.severity || 'medium').toLowerCase();
+      if (distribution.hasOwnProperty(severity)) {
+        distribution[severity]++;
+      } else {
+        distribution.info++;
+      }
+    }
+
+    return distribution;
   }
 
   /**

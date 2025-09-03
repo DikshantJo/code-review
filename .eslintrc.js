@@ -6,12 +6,10 @@ module.exports = {
   },
   extends: [
     'eslint:recommended',
-    'plugin:node/recommended',
-    'plugin:security/recommended'
+    'plugin:node/recommended'
   ],
   plugins: [
-    'node',
-    'security'
+    'node'
   ],
   parserOptions: {
     ecmaVersion: 2022,

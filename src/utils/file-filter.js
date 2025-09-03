@@ -293,6 +293,17 @@ class FileFilter {
   }
 
   /**
+   * Check if a file should be reviewed (inverse of shouldExcludeFile)
+   * @param {string} filePath - Path to the file
+   * @param {Object} options - Additional options
+   * @returns {boolean} True if file should be reviewed
+   */
+  shouldReviewFile(filePath, options = {}) {
+    const excludeResult = this.shouldExcludeFile(filePath, options);
+    return !excludeResult.shouldExclude;
+  }
+
+  /**
    * Get file statistics for a list of files
    * @param {Array<string>} files - Array of file paths
    * @returns {Object} File statistics
