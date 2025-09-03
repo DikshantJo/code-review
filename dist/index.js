@@ -48387,7 +48387,7 @@ class AIReviewAction {
     
     try {
       // Prepare review content
-      const reviewContent = await this.prepareReviewContent(files);
+      const reviewContent = await this.prepareReviewContent(files, branchInfo);
       
       // Check token limits
       const tokenAnalysis = await this.tokenManager.analyzeContent(reviewContent);
@@ -48399,7 +48399,7 @@ class AIReviewAction {
       const reviewMetrics = this.calculateReviewMetrics(files);
       
       // Perform AI review
-      const aiResponse = await this.openaiClient.reviewCode(reviewContent, this.config);
+      const aiResponse = await this.openaiClient.performCodeReview(reviewContent);
       
       // Parse and validate response
       const parsedResponse = await this.responseHandler.parseResponse(aiResponse);
@@ -48562,16 +48562,29 @@ class AIReviewAction {
   /**
    * Prepare content for AI review
    */
-  async prepareReviewContent(files) {
+  async prepareReviewContent(files, branchInfo = {}) {
     // Implementation to prepare file content for AI review
     // This would include file diffs, metadata, etc.
     return {
-      files: files,
-      metadata: {
-        repository: this.context.repo.owner + '/' + this.context.repo.repo,
-        branch: this.context.ref.replace('refs/heads/', ''),
-        commit: this.context.sha,
-        author: this.context.actor
+      files: files.map(file => ({
+        path: file.filename || file.path,
+        content: file.content || file.patch || '',
+        size: file.size || 0,
+        lines: file.lines || 0
+      })),
+      targetBranch: branchInfo.targetBranch || this.context.ref?.replace('refs/heads/', '') || 'main',
+      severityThreshold: this.config?.review?.severity_threshold || 'MEDIUM',
+      reviewCriteria: this.config?.review?.criteria || {
+        security: true,
+        performance: true,
+        maintainability: true,
+        standards: true
+      },
+      context: {
+        repository: this.context.repo?.owner + '/' + this.context.repo?.repo || 'unknown/unknown',
+        branch: this.context.ref?.replace('refs/heads/', '') || 'main',
+        commit: this.context.sha || 'unknown',
+        author: this.context.actor || 'unknown'
       }
     };
   }
