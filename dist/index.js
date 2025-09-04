@@ -47974,7 +47974,7 @@ class AIReviewAction {
         await this.updateMonitoringDashboard(reviewResult, duration);
       }
       
-      core.info(`Review completed in ${duration}ms - ${reviewResult.passed ? 'PASSED' : 'FAILED'} - ${passFailAnalysis.reason}`);
+      core.info(`Review completed in ${duration}ms - ${passFailAnalysis.passed ? 'PASSED' : 'FAILED'} - ${passFailAnalysis.reason}`);
     } catch (error) {
       core.warning(`Failed to log review completion: ${error.message}`);
     }
