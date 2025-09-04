@@ -178,11 +178,14 @@ class SystemHealthChecker {
     console.log(`  🔍 Checking ${component}...`);
     
     try {
-      const AuditLogger = require('./logger');
-      const auditLogger = new AuditLogger(config);
-      
-      // Create dynamic proxy
-      const proxyAuditLogger = createDynamicProxy(auditLogger, component);
+      // Create dynamic proxy for console logging
+      const consoleLogger = {
+        log: (level, message, data) => {
+          const timestamp = new Date().toISOString();
+          console.log(`[${timestamp}] [${component}] [${level.toUpperCase()}] ${message}`, data);
+        }
+      };
+      const proxyAuditLogger = createDynamicProxy(consoleLogger, component);
       
       const requiredMethods = [
         'logEvent',

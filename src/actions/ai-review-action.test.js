@@ -1,5 +1,4 @@
 const AIReviewAction = require('./ai-review-action');
-const AuditLogger = require('../utils/logger');
 const ErrorLogger = require('../utils/error-logger');
 const FileFilter = require('../utils/file-filter');
 const OpenAIClient = require('../utils/openai-client');

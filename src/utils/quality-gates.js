@@ -37,32 +37,18 @@ class QualityGates {
     
     this.gateResults = new Map();
     this.metrics = new Map();
-    this.auditLogger = null;
   }
 
   /**
-   * Set audit logger reference for logging quality gate activities
+   * Quality gates will use console logging for all activities
    */
-  setAuditLogger(auditLogger) {
-    if (auditLogger && typeof auditLogger.log === 'function') {
-      this.auditLogger = auditLogger;
-      console.log('✅ Audit logger set for quality gates');
-    } else {
-      console.warn('⚠️ Invalid audit logger provided to quality gates');
-    }
-  }
 
   /**
-   * Log quality gate activity using audit logger if available
+   * Log quality gate activity using console logging
    */
   logActivity(level, message, data = {}) {
-    if (this.auditLogger && typeof this.auditLogger.log === 'function') {
-      this.auditLogger.log(level, `[QualityGates] ${message}`, data);
-    } else {
-      // Fallback to console logging
-      const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}] [QualityGates] [${level.toUpperCase()}] ${message}`, data);
-    }
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [QualityGates] [${level.toUpperCase()}] ${message}`, data);
   }
 
   /**

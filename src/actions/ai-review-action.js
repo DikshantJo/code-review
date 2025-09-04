@@ -2,7 +2,6 @@ const core = require('@actions/core');
 const github = require('@actions/github');
 
 // Import utilities
-const AuditLogger = require('../utils/logger');
 const FileFilter = require('../utils/file-filter');
 const OpenAIClient = require('../utils/openai-client');
 const GitHubClient = require('../utils/github-client');
@@ -91,7 +90,6 @@ class AIReviewAction {
       
       // Initialize other properties
       this.config = null;
-      this.auditLogger = null;
       this.errorLogger = null;
       this.healthChecker = null;
       this.serviceAvailability = null;
@@ -178,10 +176,7 @@ class AIReviewAction {
       // Initialize service availability handler
       this.serviceAvailability = new ServiceAvailabilityHandler(this.config);
       
-      // Set audit logger reference for quality gates
-      if (this.qualityGates && this.auditLogger) {
-        this.qualityGates.setAuditLogger(this.auditLogger);
-      }
+      // Quality gates will use console logging as fallback
       
       // Update FallbackHandler config
       if (this.fallbackHandler && this.fallbackHandler.updateConfig) {
@@ -274,16 +269,13 @@ class AIReviewAction {
    */
   async initializeLogging() {
     try {
-      // Initialize audit logger
-      this.auditLogger = new AuditLogger(this.config);
-      
       // Initialize error logger
       this.errorLogger = new ErrorLogger(this.config);
       
-      core.info('Logging systems initialized');
+      core.info('✅ Logging systems initialized successfully');
     } catch (error) {
-      core.warning(`Failed to initialize logging: ${error.message}`);
-      // Continue without logging if it fails
+      core.error(`❌ Failed to initialize logging: ${error.message}`);
+      throw error; // Don't continue silently - this is critical
     }
   }
 
@@ -351,35 +343,7 @@ class AIReviewAction {
    * Log review attempt start with comprehensive context
    */
   async logReviewAttemptStart(sessionId) {
-    if (!this.auditLogger) return;
-    
     try {
-      const reviewData = {
-        session_id: sessionId,
-        action: 'review_start',
-        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
-        event_name: this.context.eventName || 'unknown',
-        event_action: this.context.payload?.action || 'unknown',
-        actor: this.context.actor || 'unknown',
-        workflow: this.context.workflow || 'unknown',
-        run_id: this.context.runId || 'unknown',
-        sha: this.context.sha || 'unknown',
-        ref: this.context.ref || 'unknown',
-        head_ref: this.context.payload?.head_ref || 'unknown',
-        base_ref: this.context.payload?.base_ref || 'unknown'
-      };
-      
-      const context = {
-        user: this.context.actor || 'unknown',
-        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
-        branch: this.context.ref ? this.context.ref.replace('refs/heads/', '') : 'unknown',
-        commitSha: this.context.sha || 'unknown',
-        sessionId: sessionId,
-        userAgent: 'AI-Code-Review-System',
-        version: '1.0.0'
-      };
-      
-      await this.auditLogger.logReviewAttempt(reviewData, context);
       core.info(`Review session started: ${sessionId}`);
     } catch (error) {
       core.warning(`Failed to log review attempt start: ${error.message}`);
@@ -390,33 +354,7 @@ class AIReviewAction {
    * Log review skipped with reason
    */
   async logReviewSkipped(sessionId, branchInfo, reason) {
-    if (!this.auditLogger) return;
-    
     try {
-      const reviewData = {
-        session_id: sessionId,
-        action: 'review_skipped',
-        reason: reason,
-        source_branch: branchInfo.sourceBranch,
-        target_branch: branchInfo.targetBranch,
-        environment: branchInfo.environment
-      };
-      
-      const context = {
-        user: this.context.actor || 'unknown',
-        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
-        branch: branchInfo.targetBranch,
-        commitSha: this.context.sha || 'unknown',
-        sessionId: sessionId
-      };
-      
-      await this.auditLogger.logReviewOutcome({
-        passed: true,
-        skipped: true,
-        reason: reason,
-        issues: []
-      }, context);
-      
       core.info(`Review skipped: ${reason}`);
     } catch (error) {
       core.warning(`Failed to log review skipped: ${error.message}`);
@@ -427,77 +365,9 @@ class AIReviewAction {
    * Log review completion with detailed pass/fail analysis and metrics
    */
   async logReviewCompletion(sessionId, reviewResult, duration) {
-    if (!this.auditLogger) return;
-    
     try {
       // Calculate detailed pass/fail criteria
       const passFailAnalysis = this.analyzePassFailCriteria(reviewResult);
-      
-      // Prepare comprehensive review data
-      const reviewData = {
-        session_id: sessionId,
-        action: 'review_completed',
-        duration_ms: duration,
-        passed: reviewResult.passed,
-        pass_fail_analysis: passFailAnalysis,
-        issues_count: reviewResult.issues?.length || 0,
-        severity_breakdown: reviewResult.severityBreakdown || {},
-        ai_response_time: reviewResult.aiResponseTime || 0,
-        tokens_used: reviewResult.tokensUsed || 0,
-        model_used: reviewResult.modelUsed || 'unknown',
-        quality_score: reviewResult.qualityScore || 0,
-        environment: reviewResult.environment,
-        target_branch: reviewResult.targetBranch,
-        files_reviewed: reviewResult.filesReviewed || 0,
-        lines_of_code: reviewResult.linesOfCode || 0,
-        review_coverage: reviewResult.reviewCoverage || 0
-      };
-      
-      const context = {
-        user: this.context.actor || 'unknown',
-        repository: this.context.repo?.owner + '/' + this.context.repo?.repo,
-        branch: reviewResult.targetBranch,
-        commitSha: this.context.sha || 'unknown',
-        sessionId: sessionId
-      };
-      
-      // Log detailed review outcome
-      await this.auditLogger.logReviewOutcome({
-        passed: reviewResult.passed,
-        issues: reviewResult.issues || [],
-        duration: duration,
-        aiResponseTime: reviewResult.aiResponseTime,
-        tokensUsed: reviewResult.tokensUsed,
-        modelUsed: reviewResult.modelUsed,
-        passFailAnalysis: passFailAnalysis,
-        qualityScore: reviewResult.qualityScore || 0,
-        environment: reviewResult.environment,
-        filesReviewed: reviewResult.filesReviewed || 0,
-        linesOfCode: reviewResult.linesOfCode || 0,
-        reviewCoverage: reviewResult.reviewCoverage || 0
-      }, context);
-      
-      // Log AI response metrics with enhanced tracking
-      await this.auditLogger.logAIResponseMetrics({
-        responseTime: reviewResult.aiResponseTime,
-        tokensUsed: reviewResult.tokensUsed,
-        model: reviewResult.modelUsed,
-        qualityScore: reviewResult.qualityScore || 0,
-        filesReviewed: reviewResult.filesReviewed || 0,
-        linesOfCode: reviewResult.linesOfCode || 0,
-        reviewCoverage: reviewResult.reviewCoverage || 0,
-        modelVersion: reviewResult.modelVersion,
-        apiVersion: reviewResult.apiVersion,
-        temperature: reviewResult.temperature,
-        maxTokens: reviewResult.maxTokens,
-        retryCount: reviewResult.retryCount || 0,
-        fallbackUsed: reviewResult.fallbackUsed || false,
-        errorType: reviewResult.errorType,
-        errorMessage: reviewResult.errorMessage
-      }, context);
-      
-      // Log detailed pass/fail summary
-      await this.logPassFailSummary(sessionId, reviewResult, passFailAnalysis, context);
       
       // Update monitoring dashboard
       if (this.monitoringDashboard) {
@@ -615,35 +485,6 @@ class AIReviewAction {
     return analysis;
   }
 
-  /**
-   * Log detailed pass/fail summary
-   */
-  async logPassFailSummary(sessionId, reviewResult, passFailAnalysis, context) {
-    if (!this.auditLogger) return;
-    
-    try {
-      const summaryData = {
-        session_id: sessionId,
-        action: 'pass_fail_summary',
-        passed: passFailAnalysis.passed,
-        reason: passFailAnalysis.reason,
-        environment: reviewResult.environment,
-        target_branch: reviewResult.targetBranch,
-        criteria_met: passFailAnalysis.criteria_met,
-        criteria_failed: passFailAnalysis.criteria_failed,
-        severity_breakdown: passFailAnalysis.severity_thresholds,
-        environment_thresholds: passFailAnalysis.environment_thresholds,
-        quality_score: reviewResult.qualityScore || 0,
-        total_issues: passFailAnalysis.severity_thresholds.total,
-        files_reviewed: reviewResult.filesReviewed || 0,
-        review_coverage: reviewResult.reviewCoverage || 0
-      };
-
-      await this.auditLogger.logInfo('pass_fail_summary', summaryData, context);
-    } catch (error) {
-      core.warning(`Failed to log pass/fail summary: ${error.message}`);
-    }
-  }
 
   /**
    * Handle errors with comprehensive logging
@@ -663,21 +504,6 @@ class AIReviewAction {
             commit_sha: this.context.sha,
             actor: this.context.actor
           }
-        });
-      }
-      
-      // Log to audit trail
-      if (this.auditLogger) {
-        await this.auditLogger.logError('review_failed', {
-          session_id: sessionId,
-          error_message: error.message,
-          duration_ms: duration
-        }, {
-          user: this.context.actor,
-          repository: this.context.repo.owner + '/' + this.context.repo.repo,
-          branch: this.context.ref.replace('refs/heads/', ''),
-          commitSha: this.context.sha,
-          sessionId: sessionId
         });
       }
       
@@ -753,21 +579,7 @@ class AIReviewAction {
    */
   async handleLargeCommit(sessionId, branchInfo, commitAnalysis) {
     // Log large commit detection
-    if (this.auditLogger) {
-      await this.auditLogger.logWarn('large_commit_detected', {
-        session_id: sessionId,
-        file_count: commitAnalysis.fileCount,
-        total_size: commitAnalysis.totalSize,
-        estimated_tokens: commitAnalysis.estimatedTokens,
-        recommendation: commitAnalysis.recommendation
-      }, {
-        user: this.context.actor,
-        repository: this.context.repo.owner + '/' + this.context.repo.repo,
-        branch: branchInfo.targetBranch,
-        commitSha: this.context.sha,
-        sessionId: sessionId
-      });
-    }
+    core.warning(`Large commit detected: ${commitAnalysis.fileCount} files, ${commitAnalysis.totalSize} bytes`);
     
     // Handle according to configuration
     if (this.config.review.skip_large_commits) {
@@ -858,21 +670,42 @@ class AIReviewAction {
         error
       });
       
-              // Add error tracking metrics to fallback result
-        return {
-          ...fallbackResult,
-          aiResponseTime: errorTime,
-          tokensUsed: 0,
-          modelUsed: this.config?.openai?.model || 'unknown',
-          fallbackUsed: true,
-          errorType: error.name || 'UnknownError',
-          errorMessage: error.message,
-          retryCount: fallbackResult.retryCount || 0,
-          modelVersion: this.config?.openai?.model || 'unknown',
-          apiVersion: 'unknown',
-          temperature: this.config?.openai?.temperature || 0.1,
-          maxTokens: this.config?.openai?.max_tokens || 0
-        };
+      // Extract the response from fallback result
+      const fallbackResponse = fallbackResult.response || fallbackResult;
+      
+      // Calculate quality score from fallback response
+      const qualityScore = fallbackResponse.qualityScore || this.calculateQualityScore(fallbackResponse, { filesCount: files.length });
+      
+      // Add error tracking metrics to fallback result
+      return {
+        passed: fallbackResponse.passed || false,
+        issues: fallbackResponse.issues || [],
+        targetBranch: branchInfo.targetBranch,
+        environment: branchInfo.branchType,
+        filesReviewed: files.length,
+        linesOfCode: files.reduce((total, file) => total + (file.lines || 0), 0),
+        reviewCoverage: 100,
+        aiResponseTime: errorTime,
+        tokensUsed: 0,
+        modelUsed: this.config?.openai?.model || 'unknown',
+        qualityScore: qualityScore,
+        severityBreakdown: fallbackResponse.severityBreakdown || {
+          critical: 0,
+          high: 0,
+          medium: 0,
+          low: 0
+        },
+        fallbackUsed: true,
+        errorType: error.name || 'UnknownError',
+        errorMessage: error.message,
+        retryCount: fallbackResult.retryCount || 0,
+        modelVersion: this.config?.openai?.model || 'unknown',
+        apiVersion: 'unknown',
+        temperature: this.config?.openai?.temperature || 0.1,
+        maxTokens: this.config?.openai?.max_tokens || 0,
+        fallbackType: fallbackResult.type || 'unknown',
+        fallbackStrategy: fallbackStrategy
+      };
     }
   }
 
@@ -1153,23 +986,6 @@ ${Object.entries(reviewResult.severityBreakdown || {}).map(([severity, count]) =
       }
     } catch (error) {
       core.error(`Quality gate check failed: ${error.message}`);
-      
-      // Log quality gate error
-      if (this.auditLogger) {
-        await this.auditLogger.logError('quality_gate_check_failed', {
-          session_id: sessionId,
-          error_message: error.message,
-          error_stack: error.stack,
-          target_branch: branchInfo.targetBranch,
-          environment: branchInfo.environment
-        }, {
-          user: this.context.actor,
-          repository: this.context.repo.owner + '/' + this.context.repo.repo,
-          branch: branchInfo.targetBranch,
-          commitSha: this.context.sha,
-          sessionId: sessionId
-        });
-      }
     }
   }
 
@@ -1286,11 +1102,6 @@ ${Object.entries(reviewResult.severityBreakdown || {}).map(([severity, count]) =
           finishReason: aiResponse.choices?.[0]?.finish_reason || 'unknown'
         }
       };
-      
-      // Log to audit logger
-      if (this.auditLogger) {
-        await this.auditLogger.logAIResponse(logData);
-      }
       
       // Log to console with structured format
       core.info('📊 AI Response Analysis:');

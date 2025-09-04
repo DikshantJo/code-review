@@ -144,15 +144,25 @@ ${safePrompt.user || 'Code to review:'}`
     const safeContext = context || {};
     
     const fallback = {
+      passed: false, // Manual review required, so we fail the automated check
       issues: [
         {
           severity: 'MEDIUM',
           category: 'Standards',
+          title: 'AI code review service unavailable',
           description: 'AI code review service unavailable. Manual review required.',
           file: 'all',
+          line: null,
           recommendation: 'Please have a team member review this code manually before merging.'
         }
       ],
+      severityBreakdown: {
+        critical: 0,
+        high: 0,
+        medium: 1,
+        low: 0
+      },
+      qualityScore: 0.3, // Low score since manual review is required
       summary: {
         totalIssues: 1,
         highSeverityCount: 0,
